@@ -21,17 +21,25 @@ jobs:
       - name: Build Docker Compose
         run: docker compose build
 
-      - name: Test container startup
-        run: |
-          docker compose up -d mysql-db
-          sleep 10
-          docker compose up -d java-api
-          sleep 15
-          docker compose ps
+      - name: Start MySQL
+        run: docker compose up -d mysql-db
+
+      - name: Wait for MySQL
+        run: sleep 15
+
+      - name: Start Java API
+        run: docker compose up -d java-api
+
+      - name: Wait for API
+        run: sleep 20
+
+      - name: Check containers
+        run: docker compose ps
 
       - name: Check health
         run: |
-          docker inspect authenticationserver-java-api-1 --format='{{.State.Health.Status}}' || echo "healthy"
+          docker inspect authenticationapi --format='{{.State.Status}}'
+          docker inspect authenticationapi-mysql --format='{{.State.Health.Status}}'
 
       - name: Stop containers
         if: always()
