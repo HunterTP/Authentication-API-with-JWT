@@ -1,0 +1,21 @@
+# Keystore und Secrets
+keystore.jks
+.env
+
+# Docker Volumes
+mysql-data/
+
+# Maven Build
+target/
+*.jar
+*.war
+
+# VS Code
+.vscode/
+.classpath
+.project
+.settings/
+
+# IDE
+.idea/
+*.iml

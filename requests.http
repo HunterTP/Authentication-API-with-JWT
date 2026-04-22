@@ -1,0 +1,133 @@
+### ============================================
+### JWT REST API Tests
+### Server: https://localhost:8443
+### ============================================
+
+### 1. Alle Benutzer anzeigen (öffentlich)
+GET https://localhost:8443/api/users
+Content-Type: application/json
+
+### 2. Neuen Benutzer anlegen (öffentlich)
+POST https://localhost:8443/api/user
+Content-Type: application/json
+
+{
+  "username": "alice",
+  "password": "secret123"
+}
+
+### 2b. Noch ein Benutzer
+POST https://localhost:8443/api/user
+Content-Type: application/json
+
+{
+  "username": "bob",
+  "password": "geheim456"
+}
+
+### 3. Login - Benutzer alice
+# @name loginRequestAlice
+POST https://localhost:8443/api/login
+Content-Type: application/json
+
+{
+  "username": "alice",
+  "password": "secret123"
+}
+
+### Speichere Alices Token
+@auth_token = {{loginRequestAlice.response.body.token}}
+
+## 4. Login - Benutzer bob
+# @name loginRequestBob
+POST https://localhost:8443/api/login
+Content-Type: application/json
+
+{
+  "username": "bob",
+  "password": "geheim456"
+}
+
+### Speichere Bobs Token
+@bob_token = {{loginRequestBob.response.body.token}}
+
+### 5. Geschützten Endpunkt aufrufen (mit Token von alice)
+GET https://localhost:8443/api/profile
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+### 6. Geschützten Endpunkt mit Bobs Token
+GET https://localhost:8443/api/profile
+Authorization: Bearer {{bob_token}}
+Content-Type: application/json
+
+### 7. Geschützten Endpunkt OHNE Token (sollte 401 zurückgeben)
+GET https://localhost:8443/api/profile
+Content-Type: application/json
+
+### 8. Geschützten Endpunkt mit FALSchem Token (sollte 401 zurückgeben)
+GET https://localhost:8443/api/profile
+Authorization: Bearer falscher.token.hier
+Content-Type: application/json
+
+### 9. Login mit falschem Passwort (sollte 401 zurückgeben)
+POST https://localhost:8443/api/login
+Content-Type: application/json
+
+{
+  "username": "alice",
+  "password": "falsches_passwort"
+}
+
+### 10. Benutzer anlegen der bereits existiert (sollte 409 zurückgeben)
+POST https://localhost:8443/api/user
+Content-Type: application/json
+
+{
+  "username": "alice",
+  "password": "irgendein_passwort"
+}
+
+### 11. Benutzer anlegen ohne Passwort (sollte 400 zurückgeben)
+POST https://localhost:8443/api/user
+Content-Type: application/json
+
+{
+  "username": "nur_username"
+}
+
+### 12. Login ohne Passwort (sollte 400 zurückgeben)
+POST https://localhost:8443/api/login
+Content-Type: application/json
+
+{
+  "username": "alice"
+}
+
+### 13. Alice Konto abfragen
+GET https://localhost:8443/api/konto
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+### 14. Bob Konto abfragen 
+GET https://localhost:8443/api/konto
+Authorization: Bearer {{bob_token}}
+Content-Type: application/json
+
+### 2. Kontostand aktualisieren
+POST https://localhost:8443/api/konto
+Content-Type: application/json
+Authorization: Bearer {{bob_token}}
+
+{
+  "betrag": 1000
+}
+### ============================================
+### Erwartete Status Codes:
+### 200 OK - Erfolg
+### 201 Created - Benutzer angelegt
+### 400 Bad Request - Fehlende Felder
+### 401 Unauthorized - Falscher Login / Kein Token
+### 405 Method Not Allowed - Falsche HTTP Methode
+### 409 Conflict - Benutzername existiert bereits
+### ============================================
