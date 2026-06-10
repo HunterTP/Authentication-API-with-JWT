@@ -5,7 +5,7 @@ import org.mindrot.jbcrypt.BCrypt;
 public class JbcryptUtils {
 
     private static final int WORKLOAD = 15;
-    private static final String PEPPER = System.getenv("pepper");
+    private static final String PEPPER = System.getenv("BCRYPT_PEPPER");
 
     public String[] Hash(String password) {
         String[] hash = new String[2];

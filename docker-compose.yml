@@ -4,8 +4,8 @@ services:
     container_name: Authenticationapi-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}  # .env!
-      MYSQL_DATABASE: ${DB_NAME:-authenticationapi}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${DB_NAME:-authdb}
       MYSQL_USER: ${DB_USER:-appuser}
       MYSQL_PASSWORD: ${DB_PASSWORD:-apppass}
     ports:

@@ -62,6 +62,7 @@ public class HttpsUtils {
                 server.start();
             } catch (java.security.KeyStoreException | java.security.NoSuchAlgorithmException | java.security.UnrecoverableKeyException | java.security.KeyManagementException | java.io.IOException e) {
                 System.err.println("Error with the SSL Initialization: " + e.getMessage());
+                server = null;
             }
             return server;
     }
