@@ -49,8 +49,8 @@ services:
       storepass: ${KEYSTORE_PASS}
       keypass: ${KEY_PASS}
     volumes:
-      # Zertifikat from outside mounten (optional)
-      - ${KEYSTORE_PATH:-./keystore.jks}:/app/keystore.jks:ro
+      # Optional: eigenes Zertifikat einbinden
+      # - ${KEYSTORE_PATH:-./keystore.jks}:/app/keystore.jks:ro
     healthcheck:
       test: ["CMD", "wget", "--no-check-certificate", "-q", "-O-", "https://localhost:8443/api/health"]
       interval: 30s
