@@ -29,7 +29,7 @@ public class HttpsUtils {
         try {
                 // Load Key (keystore.jks)
                 char[] storepass = STROREPASS.toCharArray();
-                KeyStore ks = KeyStore.getInstance("JKS");
+                KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
                 try (FileInputStream fis = new FileInputStream("keystore.jks")) {
                     ks.load(fis, storepass);
                 }

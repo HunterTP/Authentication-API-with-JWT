@@ -7,8 +7,8 @@ RUN mvn dependency:go-offline
 COPY src ./src
 RUN mvn clean package -DskipTests
 RUN keytool -genkeypair -alias selfsigned -keyalg RSA -keysize 2048 \
-    -validity 3650 -storetype JKS -keystore keystore.jks \
-    -storepass 123456 -keypass 123456 \
+    -validity 3650 -storetype PKCS12 -keystore keystore.jks \
+    -storepass 123456 -keypass 123456 -noprompt \
     -dname "CN=localhost, OU=Dev, O=Authentication-API, L=Unknown, ST=Unknown, C=Unknown"
 
 # ---- Stage 2: Runtime ----
