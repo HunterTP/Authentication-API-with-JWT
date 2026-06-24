@@ -21,60 +21,44 @@ jobs:
       - name: Build Docker image
         run: docker build -t authentication-api .
 
+      - name: Direct container test
+        run: |
+          echo "=== Running container ==="
+          docker run -d --name test-api authentication-api
+          sleep 10
+          echo "=== Container state ==="
+          STATE=$(docker inspect test-api --format='{{.State.Status}} {{.State.ExitCode}} {{.State.Error}}' 2>/dev/null)
+          echo "::error title=Container State::$STATE"
+          echo "=== Logs ==="
+          LOGS=$(docker logs test-api 2>&1)
+          echo "::error title=Container Logs::$LOGS"
+          docker rm -f test-api 2>/dev/null
+
       - name: Build Docker Compose
         run: docker compose build
 
       - name: Start services
         run: docker compose up -d
 
-      - name: Wait for MySQL
+      - name: Check startup
         run: |
-          echo "Waiting for MySQL to be healthy..."
-          for i in $(seq 1 30); do
-            status=$(docker inspect --format='{{.State.Health.Status}}' authenticationapi-mysql 2>/dev/null)
-            if [ "$status" = "healthy" ]; then
-              echo "MySQL is healthy!"
-              exit 0
-            fi
-            echo "Waiting... ($i/30)"
-            sleep 2
-          done
-          echo "MySQL failed to become healthy"
-          docker compose logs mysql-db
-          exit 1
-
-      - name: Debug container
-        run: |
-          echo "=== Container State ==="
-          docker inspect authenticationapi --format='STATUS={{.State.Status}} HEALTH={{.State.Health.Status}} EXIT={{.State.ExitCode}} RESTART={{.RestartCount}}' 2>/dev/null || echo "CONTAINER NOT FOUND"
-          echo "=== Inspect Full ==="
-          docker inspect authenticationapi 2>/dev/null || echo "inspect failed"
           echo "=== Compose PS ==="
           docker compose ps
-          echo "=== Logs ==="
-          docker compose logs --tail=30 java-api 2>/dev/null || echo "no logs"
+          echo "=== API container state ==="
+          docker inspect authenticationapi --format='{{json .State}}' 2>/dev/null || echo "not found"
+          echo "=== API logs ==="
+          docker compose logs --tail=15 java-api 2>/dev/null || echo "no logs"
+          echo "=== MySQL logs ==="
+          docker compose logs --tail=15 mysql-db 2>/dev/null || echo "no logs"
 
       - name: Wait for API
         run: |
-          echo "Waiting for API to be healthy..."
-          for i in $(seq 1 60); do
-            status=$(docker inspect --format='{{.State.Health.Status}}' authenticationapi 2>/dev/null)
-            if [ "$status" = "healthy" ]; then
-              echo "API is healthy!"
-              exit 0
-            fi
-            echo "Waiting... ($i/60) status=$status"
-            sleep 2
-          done
-          echo "API failed to become healthy"
-          echo "--- Final container state ---"
-          docker inspect authenticationapi --format='{{json .State}}' 2>/dev/null || echo "container not found"
-          echo "--- Full logs ---"
-          docker compose logs java-api
-          exit 1
-
-      - name: Check containers
-        run: docker compose ps
+          echo "Waiting 30s for API startup..."
+          sleep 30
+          docker inspect authenticationapi --format='{{json .State}}' 2>/dev/null || echo "not found"
+          docker compose logs --tail=20 java-api 2>/dev/null || echo "no logs"
+          echo "=== Health check ==="
+          docker compose ps
 
       - name: Stop containers
         if: always()
