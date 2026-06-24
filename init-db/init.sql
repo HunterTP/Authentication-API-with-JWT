@@ -15,3 +15,8 @@ WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'admin');
 
 -- Index for Performance
 CREATE INDEX idx_username ON users(username);
+
+-- Fix: Allow appuser to connect from any host (Docker bridge network)
+CREATE USER IF NOT EXISTS 'appuser'@'%' IDENTIFIED BY 'appuserpass';
+GRANT ALL PRIVILEGES ON `authdb`.* TO 'appuser'@'%' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
