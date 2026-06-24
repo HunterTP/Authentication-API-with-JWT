@@ -39,10 +39,10 @@ jobs:
           SQL="DROP USER IF EXISTS 'appuser'@'%'; CREATE USER 'appuser'@'%' IDENTIFIED WITH mysql_native_password BY 'appuserpass'; GRANT ALL PRIVILEGES ON authdb.* TO 'appuser'@'%'; FLUSH PRIVILEGES;"
           echo "=== Granting appuser permissions ==="
           for i in $(seq 1 10); do
-            docker exec authenticationapi-mysql mysql -u root \
-              -e "${SQL}" 2>/dev/null && {
-              docker exec authenticationapi-mysql mysql -u root \
-                -e "SELECT user, host, plugin FROM mysql.user WHERE user = 'appuser';"
+            echo "${SQL}" | docker exec -i authenticationapi-mysql \
+              sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -u root' 2>/dev/null && {
+              docker exec authenticationapi-mysql \
+                sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -u root -e "SELECT user, host, plugin FROM mysql.user WHERE user = '\''appuser'\'';"'
               exit 0
             }
             sleep 2

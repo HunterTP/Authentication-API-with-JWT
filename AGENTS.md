@@ -16,31 +16,26 @@ is actually a misleading error from the JDBC driver — the real issue is that `
 
 ## Fixes Applied
 
-### 1. `mysql-config/custom.cnf` — MySQL auth plugin config
-New config file that sets `default_authentication_plugin=mysql_native_password`. This forces MySQL 8.0.33 to use the older password hashing (natively supported by JDBC) instead of `caching_sha2_password`.
+### 1. `init-db/init.sh` — appuser with mysql_native_password
+Runs during MySQL entrypoint init. Drops the entrypoint-created `appuser` (which uses `caching_sha2_password`) and recreates it with `IDENTIFIED WITH mysql_native_password` for JDBC compatibility. Uses `-p"${MYSQL_ROOT_PASSWORD}"` because it runs after the entrypoint sets root's password.
 
-### 2. `init-db/init.sql` — Explicit user + mysql_native_password
-Creates `'appuser'@'%'` explicitly with `IDENTIFIED WITH mysql_native_password`, plus ALTER USER as fallback if the user was already created with the wrong plugin.
+### 2. `docker-compose.yml` — Healthcheck with root password
+MySQL healthcheck uses `mysqladmin ping -h localhost -u root -p"$MYSQL_ROOT_PASSWORD"` because the entrypoint now correctly sets root's password (no `MYSQL_PWD` interference).
 
-### 3. `docker-compose.yml` — Healthcheck verbessert
-- Switched from `wget` → `curl -f -k -s -o /dev/null` for quieter healthcheck
-- Interval: 30s → 5s (faster failure detection)
-- Added `start_period: 20s` (ignore failures during boot)
-- Retries: 3 → 10
-- Added `MYSQL_PWD` env var for root-level mysqladmin access
+**Key insight: `MYSQL_PWD` breaks the entrypoint**
+- With `MYSQL_PWD=rootpass` set: the entrypoint's `mysql -u root` client reads `MYSQL_PWD` and sends `rootpass`, but root has an **empty password** (from `--initialize-insecure`) → "Access denied" → ALTER USER fails → root stays empty → healthcheck works without password
+- Without `MYSQL_PWD`: entrypoint's `mysql -u root` sends **empty password** → matches root's empty password → ALTER USER succeeds → root has password → healthcheck/init.sh/grant-step all need `-p`
 
-### 3. `Dockerfile` — curl installed in image
-Added `apk add --no-cache curl` so the Docker healthcheck can use `curl` instead of `wget`.
-
-### 4. `docker-compose.yml` — MySQL config mount
-Added `./mysql-config/custom.cnf:/etc/mysql/conf.d/custom.cnf` volume mount to inject the `mysql_native_password` config into MySQL at startup.
-
-### 5. `.github/workflows/docker.yml` — CI polling statt --wait
+### 3. `.github/workflows/docker.yml` — CI polling statt --wait
 - Replaced fixed `sleep 30` + `--wait` with proper polling loops:
   - **Wait for MySQL**: polls `docker inspect` for `healthy` (up to 60s)
   - **Wait for API**: same approach (up to 120s)
-- Removed diagnostic debug steps
-- Build + start combined in one step
+- Grant step uses `MYSQL_PWD="$MYSQL_ROOT_PASSWORD"` (set per-exec, not globally) to connect with root's password
+
+### Removed: `mysql-config/custom.cnf`
+- `default_authentication_plugin=mysql_native_password` is **deprecated** in MySQL 8.0.33 (produces WARNING)
+- Unnecessary because `init.sh` creates appuser with explicit `IDENTIFIED WITH mysql_native_password`
+- Removing it eliminates the deprecation warning and avoids any side effects on the entrypoint's ALTER USER
 
 ## Next Steps / Offene Punkte
 - [ ] Git Actions secrets für `.env`-Variablen setzen (JWT_SECRET, KEYSTORE_PASS, etc.)

@@ -13,9 +13,8 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
       - ./init-db:/docker-entrypoint-initdb.d
-      - ./mysql-config/custom.cnf:/etc/mysql/conf.d/custom.cnf
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: mysqladmin ping -h localhost -u root -p"$$MYSQL_ROOT_PASSWORD"
       interval: 10s
       start_period: 10s
       timeout: 10s
