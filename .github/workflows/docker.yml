@@ -46,9 +46,13 @@ jobs:
       - name: Debug container
         run: |
           echo "=== Container State ==="
-          docker inspect authenticationapi --format='STATUS={{.State.Status}} HEALTH={{.State.Health.Status}} EXIT={{.State.ExitCode}}' 2>/dev/null || echo "CONTAINER NOT FOUND"
+          docker inspect authenticationapi --format='STATUS={{.State.Status}} HEALTH={{.State.Health.Status}} EXIT={{.State.ExitCode}} RESTART={{.RestartCount}}' 2>/dev/null || echo "CONTAINER NOT FOUND"
+          echo "=== Inspect Full ==="
+          docker inspect authenticationapi 2>/dev/null || echo "inspect failed"
+          echo "=== Compose PS ==="
+          docker compose ps
           echo "=== Logs ==="
-          docker compose logs --tail=15 java-api 2>/dev/null || echo "no logs"
+          docker compose logs --tail=30 java-api 2>/dev/null || echo "no logs"
 
       - name: Wait for API
         run: |
