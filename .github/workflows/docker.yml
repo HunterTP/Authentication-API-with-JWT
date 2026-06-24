@@ -36,12 +36,12 @@ jobs:
 
       - name: Grant MySQL permissions
         run: |
+          SQL="DROP USER IF EXISTS 'appuser'@'%'; CREATE USER 'appuser'@'%' IDENTIFIED WITH mysql_native_password BY 'appuserpass'; GRANT ALL PRIVILEGES ON authdb.* TO 'appuser'@'%'; FLUSH PRIVILEGES;"
+          MYSQL="docker exec -i authenticationapi-mysql mysql -u root --get-server-public-key"
           echo "=== Granting appuser permissions ==="
-          docker exec authenticationapi-mysql mysql -u root -p'mySaveDBPassword123!' \
-            -e "DROP USER IF EXISTS 'appuser'@'%'; CREATE USER 'appuser'@'%' IDENTIFIED WITH mysql_native_password BY 'appuserpass'; GRANT ALL PRIVILEGES ON authdb.* TO 'appuser'@'%'; FLUSH PRIVILEGES;"
+          $MYSQL -e "${SQL}"
           echo "=== Verifying appuser ==="
-          docker exec authenticationapi-mysql mysql -u root -p'mySaveDBPassword123!' \
-            -e "SELECT user, host, plugin FROM mysql.user WHERE user = 'appuser';"
+          $MYSQL -e "SELECT user, host, plugin FROM mysql.user WHERE user = 'appuser';"
 
       - name: Wait for API
         run: |
