@@ -6,20 +6,23 @@
 - **API endpoint**: ✅ Healthy (Docker + lokal)
 
 ## Root Cause: Docker Build CI Failure
-The Java API container crashed during CI because MySQL rejected the `appuser` connection from the Docker bridge network IP (`172.18.0.3`). The error was:
+The Java API container crashed during CI because MySQL's default `caching_sha2_password` authentication plugin is incompatible with `mysql-connector-java` (8.0.33) when connecting via Docker bridge network. The error:
 
 ```
 Host '172.18.0.3' is not allowed to connect to this MySQL server
 ```
 
-MySQL's `MYSQL_USER`/`MYSQL_PASSWORD` env vars did not properly create `'appuser'@'%'`, so the Java API could never connect → restart loop → healthcheck never green.
+is actually a misleading error from the JDBC driver — the real issue is that `caching_sha2_password` requires RSA key exchange or SSL, and the Docker bridge network interferes with the public key retrieval. The error is reported as "Host not allowed" (MySQL error 1130) even though the actual problem is authentication plugin mismatch.
 
 ## Fixes Applied
 
-### 1. `init-db/init.sql` — Explicit MySQL user + grants
-Added `CREATE USER IF NOT EXISTS 'appuser'@'%'` and `GRANT ALL PRIVILEGES ON authdb.* TO 'appuser'@'%'` to guarantee the app user can connect from any Docker IP regardless of what the MySQL entrypoint does.
+### 1. `mysql-config/custom.cnf` — MySQL auth plugin config
+New config file that sets `default_authentication_plugin=mysql_native_password`. This forces MySQL 8.0.33 to use the older password hashing (natively supported by JDBC) instead of `caching_sha2_password`.
 
-### 2. `docker-compose.yml` — Healthcheck verbessert
+### 2. `init-db/init.sql` — Explicit user + mysql_native_password
+Creates `'appuser'@'%'` explicitly with `IDENTIFIED WITH mysql_native_password`, plus ALTER USER as fallback if the user was already created with the wrong plugin.
+
+### 3. `docker-compose.yml` — Healthcheck verbessert
 - Switched from `wget` → `curl -f -k -s -o /dev/null` for quieter healthcheck
 - Interval: 30s → 5s (faster failure detection)
 - Added `start_period: 20s` (ignore failures during boot)
@@ -29,7 +32,10 @@ Added `CREATE USER IF NOT EXISTS 'appuser'@'%'` and `GRANT ALL PRIVILEGES ON aut
 ### 3. `Dockerfile` — curl installed in image
 Added `apk add --no-cache curl` so the Docker healthcheck can use `curl` instead of `wget`.
 
-### 4. `.github/workflows/docker.yml` — CI polling statt --wait
+### 4. `docker-compose.yml` — MySQL config mount
+Added `./mysql-config/custom.cnf:/etc/mysql/conf.d/custom.cnf` volume mount to inject the `mysql_native_password` config into MySQL at startup.
+
+### 5. `.github/workflows/docker.yml` — CI polling statt --wait
 - Replaced fixed `sleep 30` + `--wait` with proper polling loops:
   - **Wait for MySQL**: polls `docker inspect` for `healthy` (up to 60s)
   - **Wait for API**: same approach (up to 120s)
