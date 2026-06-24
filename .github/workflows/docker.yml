@@ -24,8 +24,40 @@ jobs:
       - name: Build Docker Compose
         run: docker compose build
 
-      - name: Start services (wait for healthy)
-        run: docker compose up -d --wait --wait-timeout 180
+      - name: Start services
+        run: docker compose up -d
+
+      - name: Wait for MySQL
+        run: |
+          echo "Waiting for MySQL to be healthy..."
+          for i in $(seq 1 30); do
+            status=$(docker inspect --format='{{.State.Health.Status}}' authenticationapi-mysql 2>/dev/null)
+            if [ "$status" = "healthy" ]; then
+              echo "MySQL is healthy!"
+              exit 0
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+          echo "MySQL failed to become healthy"
+          docker compose logs mysql-db
+          exit 1
+
+      - name: Wait for API
+        run: |
+          echo "Waiting for API to be healthy..."
+          for i in $(seq 1 30); do
+            status=$(docker inspect --format='{{.State.Health.Status}}' authenticationapi 2>/dev/null)
+            if [ "$status" = "healthy" ]; then
+              echo "API is healthy!"
+              exit 0
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+          echo "API failed to become healthy"
+          docker compose logs java-api
+          exit 1
 
       - name: Check containers
         run: docker compose ps
