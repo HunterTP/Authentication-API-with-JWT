@@ -45,12 +45,10 @@ jobs:
 
       - name: Debug container
         run: |
-          echo "=== Container status ==="
-          docker ps -a --filter name=authenticationapi
-          echo "=== Inspect ==="
-          docker inspect authenticationapi --format='{{json .State}}' 2>/dev/null || echo "container not found"
-          echo "=== Full logs ==="
-          docker compose logs java-api 2>/dev/null || echo "no logs yet"
+          echo "=== Container State ==="
+          docker inspect authenticationapi --format='STATUS={{.State.Status}} HEALTH={{.State.Health.Status}} EXIT={{.State.ExitCode}}' 2>/dev/null || echo "CONTAINER NOT FOUND"
+          echo "=== Logs ==="
+          docker compose logs --tail=15 java-api 2>/dev/null || echo "no logs"
 
       - name: Wait for API
         run: |
