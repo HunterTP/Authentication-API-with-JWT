@@ -1,4 +1,5 @@
 -- init-db/init.sql
+-- Note: User creation with mysql_native_password is handled by init.sh
 
 CREATE TABLE IF NOT EXISTS users (
     id INT PRIMARY KEY AUTO_INCREMENT,
@@ -15,11 +16,3 @@ WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'admin');
 
 -- Index for Performance
 CREATE INDEX idx_username ON users(username);
-
--- Fix: Force mysql_native_password for Java JDBC compatibility
--- MySQL 8.0.33's default caching_sha2_password causes "Host not allowed" error
--- with Connector/J via Docker bridge network
-CREATE USER IF NOT EXISTS 'appuser'@'%' IDENTIFIED WITH mysql_native_password BY 'appuserpass';
-ALTER USER 'appuser'@'%' IDENTIFIED WITH mysql_native_password BY 'appuserpass';
-GRANT ALL PRIVILEGES ON `authdb`.* TO 'appuser'@'%';
-FLUSH PRIVILEGES;
