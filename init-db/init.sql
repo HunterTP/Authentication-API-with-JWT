@@ -16,7 +16,10 @@ WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'admin');
 -- Index for Performance
 CREATE INDEX idx_username ON users(username);
 
--- Fix: Allow appuser to connect from any host (Docker bridge network)
-CREATE USER IF NOT EXISTS 'appuser'@'%' IDENTIFIED BY 'appuserpass';
-GRANT ALL PRIVILEGES ON `authdb`.* TO 'appuser'@'%' WITH GRANT OPTION;
+-- Fix: Force mysql_native_password for Java JDBC compatibility
+-- MySQL 8.0.33's default caching_sha2_password causes "Host not allowed" error
+-- with Connector/J via Docker bridge network
+CREATE USER IF NOT EXISTS 'appuser'@'%' IDENTIFIED WITH mysql_native_password BY 'appuserpass';
+ALTER USER 'appuser'@'%' IDENTIFIED WITH mysql_native_password BY 'appuserpass';
+GRANT ALL PRIVILEGES ON `authdb`.* TO 'appuser'@'%';
 FLUSH PRIVILEGES;

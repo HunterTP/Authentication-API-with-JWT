@@ -1,0 +1,6 @@
+[mysqld]
+# Force mysql_native_password for Java JDBC compatibility
+# MySQL 8.0.33 default caching_sha2_password causes "Host not allowed" error
+# with mysql-connector-java via Docker bridge network
+# (deprecated in 8.0.27+ but still works and takes precedence over authentication_policy)
+default_authentication_plugin=mysql_native_password
