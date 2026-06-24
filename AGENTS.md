@@ -1,8 +1,8 @@
 # Project Summary: Authentication-API-with-JWT
 
-## Current Status ✅
+## Current Status ✅ (24.06.2026)
 - **Java CI**: ✅ All checks passing
-- **Docker Build**: ✅ All checks passing
+- **Docker Build**: ✅ All checks passing (fix confirmed working)
 - **API endpoint**: ✅ Healthy (Docker + lokal)
 
 ## Root Cause: Docker Build CI Failure
