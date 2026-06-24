@@ -43,6 +43,15 @@ jobs:
           docker compose logs mysql-db
           exit 1
 
+      - name: Debug container
+        run: |
+          echo "=== Container status ==="
+          docker ps -a --filter name=authenticationapi
+          echo "=== Inspect ==="
+          docker inspect authenticationapi --format='{{json .State}}' 2>/dev/null || echo "container not found"
+          echo "=== Full logs ==="
+          docker compose logs java-api 2>/dev/null || echo "no logs yet"
+
       - name: Wait for API
         run: |
           echo "Waiting for API to be healthy..."
@@ -53,12 +62,6 @@ jobs:
               exit 0
             fi
             echo "Waiting... ($i/60) status=$status"
-            if [ $((i % 10)) -eq 0 ]; then
-              echo "--- Container state ---"
-              docker inspect authenticationapi --format='{{.State.Status}} {{.State.Health.Status}}' 2>/dev/null || echo "container not found"
-              echo "--- Logs so far ---"
-              docker compose logs --tail=20 java-api 2>/dev/null
-            fi
             sleep 2
           done
           echo "API failed to become healthy"
