@@ -5,7 +5,6 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
-      MYSQL_PWD: ${DB_ROOT_PASSWORD:-root}
       MYSQL_DATABASE: ${DB_NAME:-authdb}
       MYSQL_USER: ${DB_USER:-appuser}
       MYSQL_PASSWORD: ${DB_PASSWORD:-apppass}
