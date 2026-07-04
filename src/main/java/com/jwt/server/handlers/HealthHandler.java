@@ -10,13 +10,13 @@ public class HealthHandler implements HttpHandler {
     
     @Override
     public void handle(HttpExchange exchange) throws IOException {
-        // Nur GET erlauben
+        // Only allow GET
         if (!exchange.getRequestMethod().equals("GET")) {
             ResponseUtils.sendError(exchange, 405, "Only GET allowed");
             return;
         }
         
-        // Einfache Status-Antwort
+        // Simple status response
         String response = String.format(
             "{\"status\":\"ok\",\"timestamp\":%d}",
             System.currentTimeMillis()

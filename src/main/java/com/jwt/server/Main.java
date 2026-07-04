@@ -18,7 +18,7 @@ public class Main {
         try {
             HttpsServer server = HttpsUtils.createHttpsServer();
             if (server == null) {
-                System.err.println("ERROR: HTTPS-Server could not be started.");
+                System.err.println("ERROR: HTTPS server could not be started.");
                 return;
             }
         } catch (Exception e) {
@@ -26,7 +26,7 @@ public class Main {
             return;
         }
         
-        System.out.println("\nHTTPS-Server is running on https://localhost:8443");
+        System.out.println("\nHTTPS server is running on https://localhost:8443");
         System.out.println("  POST /auth/register      - Create new user");
         System.out.println("  POST /auth/login         - Login (returns token)");
         System.out.println("  DELETE /auth/user/delete - Delete user (requires token)");

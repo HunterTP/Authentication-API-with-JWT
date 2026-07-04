@@ -19,7 +19,7 @@ public class JsonUtils {
     }
 
     public static String extractValueN(String json, String key) {
-        // Sucht nach "key": 
+        // Search for "key": 
         String search = "\"" + key + "\"\\s*:\\s*\"?";
         Pattern pattern = Pattern.compile(search);
         Matcher matcher = pattern.matcher(json);
@@ -27,13 +27,13 @@ public class JsonUtils {
         if (matcher.find()) {
             int start = matcher.end();
             
-            // Prüfe ob Wert in Anführungszeichen steht
+            // Check if value is in quotes
             if (json.charAt(start - 1) == '"') {
-                // Wert mit Anführungszeichen: "wert": "100"
+                // Quoted value: "value": "100"
                 int end = json.indexOf("\"", start);
                 return json.substring(start, end);
             } else {
-                // Wert ohne Anführungszeichen: "wert": 100
+                // Unquoted value: "value": 100
                 int end = start;
                 while (end < json.length() && (Character.isDigit(json.charAt(end)) || json.charAt(end) == '.' || json.charAt(end) == '-')) {
                     end++;

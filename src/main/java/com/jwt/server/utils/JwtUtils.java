@@ -12,7 +12,7 @@ public class JwtUtils {
     static {
         String secret = System.getenv("JWT_SECRET");
         
-        // Fallback NUR für Entwicklung!
+        // Fallback ONLY for development!
         if (secret == null || secret.isEmpty()) {
             System.out.println("JWT_SECRET not set in environment variables. Using default secret key.");
             secret = "mySuperSecretKeyForJWTThatIsAtLeast32Chars";
@@ -30,7 +30,7 @@ public class JwtUtils {
         return Jwts.builder()
             .subject(username)
             .issuedAt(new Date())
-            .expiration(new Date(System.currentTimeMillis() + 3600000)) // 1 Stunde
+            .expiration(new Date(System.currentTimeMillis() + 3600000)) // 1 hour
             .signWith(SECRET_KEY, Jwts.SIG.HS256)
             .compact();
     }

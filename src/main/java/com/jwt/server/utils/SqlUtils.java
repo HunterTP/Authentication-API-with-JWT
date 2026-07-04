@@ -15,12 +15,12 @@ public class SqlUtils {
     private static final String DB_PASSWORD;
 
     static {
-        // Aus Umgebungsvariablen lesen
+        // Read from environment variables
         String url = System.getenv("DB_URL");
         String user = System.getenv("DB_USER");
         String password = System.getenv("DB_PASSWORD");
         
-        // Fallback für Entwicklung
+        // Development fallback
         if (url == null || url.isEmpty()) {
             url = "jdbc:mysql://localhost:3306/razorshark";
         }
