@@ -190,6 +190,9 @@ BCRYPT_WORKLOAD=15
 KEYSTORE_PASS=123456
 KEY_PASS=123456
 
+# Optional: custom keystore path
+# KEYSTORE_PATH=./custom-keystore.jks
+
 # Server
 API_PORT=8443
 ```
@@ -216,6 +219,54 @@ docker compose build --no-cache java-api
 ### Why mysql_native_password?
 
 MySQL 8.0 defaults to `caching_sha2_password`, but the Java JDBC driver (`mysql-connector-java`) struggles with this plugin over Docker's bridge network. The error "Host not allowed" is misleading — the real issue is the auth handshake failing. The fix is `init.sh` which recreates the appuser with `IDENTIFIED WITH mysql_native_password`.
+
+## SSL Certificate
+
+The Docker build generates a **self-signed** keystore automatically. For production, use a real certificate:
+
+### Using Let's Encrypt (free)
+
+```bash
+# 1. Get certificate (e.g. with certbot)
+sudo certbot certonly --standalone -d yourdomain.com
+
+# 2. Convert to PKCS12
+openssl pkcs12 -export \
+  -in /etc/letsencrypt/live/yourdomain.com/fullchain.pem \
+  -inkey /etc/letsencrypt/live/yourdomain.com/privkey.pem \
+  -out keystore.p12 \
+  -name tomcat \
+  -password pass:your_keystore_password
+
+# 3. Convert PKCS12 to JKS
+keytool -importkeystore \
+  -srckeystore keystore.p12 -srcstoretype PKCS12 -srcstorepass your_keystore_password \
+  -destkeystore keystore.jks -deststoretype JKS -deststorepass your_keystore_password
+```
+
+### Use it with Docker
+
+```yaml
+# docker-compose.yml — mount your keystore and set env vars:
+services:
+  java-api:
+    volumes:
+      - ./keystore.jks:/app/custom-keystore.jks
+    environment:
+      KEYSTORE_PATH: /app/custom-keystore.jks
+      KEYSTORE_PASS: your_keystore_password
+      KEY_PASS: your_key_password
+```
+
+The `KEYSTORE_PATH` env var is supported — if not set, it falls back to the built-in self-signed `keystore.jks`.
+
+### Self-signed vs. real certificate
+
+| | Self-signed (default) | Real certificate |
+|---|---|---|
+| Browser | &#x26A0; Security warning | &#x2705; Trusted |
+| Setup | Automatic in Docker build | Manual (Let's Encrypt, CA, etc.) |
+| Use case | Development / testing | Production |
 
 ## CI/CD Pipeline
 

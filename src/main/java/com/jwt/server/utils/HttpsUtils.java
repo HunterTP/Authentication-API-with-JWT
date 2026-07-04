@@ -21,6 +21,7 @@ public class HttpsUtils {
 
     private static final String STROREPASS = System.getenv("storepass");
     private static final String KEYPASS = System.getenv("keypass");
+    private static final String KEYSTORE_PATH = System.getenv("KEYSTORE_PATH");
 
     public static HttpsServer createHttpsServer() throws Exception {
         
@@ -30,7 +31,8 @@ public class HttpsUtils {
                 // Load Key (keystore.jks)
                 char[] storepass = STROREPASS.toCharArray();
                 KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
-                try (FileInputStream fis = new FileInputStream("keystore.jks")) {
+                String keystorePath = (KEYSTORE_PATH != null && !KEYSTORE_PATH.isEmpty()) ? KEYSTORE_PATH : "keystore.jks";
+                try (FileInputStream fis = new FileInputStream(keystorePath)) {
                     ks.load(fis, storepass);
                 }
 

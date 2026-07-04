@@ -46,10 +46,14 @@ services:
       BCRYPT_WORKLOAD: ${BCRYPT_WORKLOAD:-12}
       
       # Keystore pass
-      KEYSTORE_PASS: ${KEYSTORE_PASS}
-      KEY_PASS: ${KEY_PASS}
-      storepass: ${KEYSTORE_PASS}
-      keypass: ${KEY_PASS}
+      KEYSTORE_PASS: ${KEYSTORE_PASS:-123456}
+      KEY_PASS: ${KEY_PASS:-123456}
+      storepass: ${KEYSTORE_PASS:-123456}
+      keypass: ${KEY_PASS:-123456}
+      # Optional: custom keystore path (mount volume below)
+      # KEYSTORE_PATH: /app/custom-keystore.jks
+    # volumes:
+    #   - ./custom-keystore.jks:/app/custom-keystore.jks
     healthcheck:
       test: ["CMD", "curl", "-f", "-k", "-s", "-o", "/dev/null", "https://localhost:8443/api/health"]
       interval: 5s
