@@ -34,6 +34,9 @@ cp .env.example .env
 
 # 3. Start containers
 docker compose up -d
+
+# 4. Check status
+docker compose ps
 ```
 
 The API will be available at `https://localhost:8443`
@@ -119,42 +122,79 @@ curl -k -X DELETE https://localhost:8443/auth/user/delete \
   -H "Authorization: Bearer <your_token>"
 ```
 
-## Docker
+## Docker Architecture
 
-### Compose File
+### Services
 
-The included `docker-compose.yml` starts two services:
-- **MySQL 8.0** - Database container
-- **Java API** - Application container
+| Container | Image | Port | Purpose |
+|-----------|-------|------|---------|
+| **mysql-db** | `mysql:8.0.33` | `3307:3306` | User database, auth plugin `mysql_native_password` |
+| **java-api** | `Dockerfile` build | `8443:8443` | Java HTTPS server, JWT auth |
 
-### Environment File (`.env`)
+### How MySQL Initializes
+
+On first start (empty volume), the MySQL container runs the official entrypoint which:
+
+1. **`mysqld --initialize-insecure`** — creates the data directory with root having an **empty password**
+2. **Temporary server** starts with `--skip-networking` (socket only)
+3. **`docker_setup_db()`** — entrypoint connects via socket, sets root's password via `ALTER USER`, creates the database and default appuser
+4. **Init scripts run** — files from `./init-db/` are executed in order:
+   - **`init.sh`** drops the entrypoint-created appuser (which uses `caching_sha2_password`) and recreates it with `IDENTIFIED WITH mysql_native_password` — required for Java JDBC compatibility over Docker bridge
+   - **`init.sql`** creates the `users` table and index
+5. **MySQL restarts** normally — now root has a password and appuser uses `mysql_native_password`
+
+### Healthchecks
+
+Both containers have healthchecks so Docker Compose can manage startup order:
+
+```yaml
+mysql-db:
+  healthcheck:
+    test: mysqladmin ping -h localhost -u root -p"$MYSQL_ROOT_PASSWORD"
+    interval: 10s
+    start_period: 10s
+    retries: 5
+
+java-api:
+  depends_on:
+    mysql-db:
+      condition: service_healthy
+  healthcheck:
+    test: ["CMD", "curl", "-f", "-k", "-s", "-o", "/dev/null", "https://localhost:8443/api/health"]
+    interval: 5s
+    start_period: 20s
+    retries: 10
+```
+
+### Environment Variables
 
 Copy `.env.example` to `.env` and configure:
 
 ```env
 # Database
-DB_ROOT_PASSWORD=your_root_password
+DB_ROOT_PASSWORD=rootpass
 DB_NAME=authdb
 DB_USER=appuser
 DB_PASSWORD=appuserpass
-DB_PORT=3307
+DB_PORT=3306
 
 # JWT
-JWT_SECRET=your_super_secret_jwt_key_at_least_32_characters
+JWT_SECRET=mySuperSecureJWTSecretThatIsAtLeast32CharactersLong
+JWT_EXPIRATION_MS=3600000
 
 # BCrypt
-BCRYPT_PEPPER=your_pepper_string
-BCRYPT_WORKLOAD=12
+BCRYPT_PEPPER=mySECRETPepperThatIsNotStoredInTheDB
+BCRYPT_WORKLOAD=15
 
 # SSL
-KEYSTORE_PASS=your_keystore_password
-KEY_PASS=your_key_password
+KEYSTORE_PASS=123456
+KEY_PASS=123456
 
 # Server
 API_PORT=8443
 ```
 
-### Build & Run
+### Commands
 
 ```bash
 # Build and start all services
@@ -163,9 +203,46 @@ docker compose up -d
 # View logs
 docker compose logs -f java-api
 
-# Stop services
-docker compose down
+# Stop and remove volumes (fresh start)
+docker compose down -v
+
+# Execute MySQL commands
+docker exec -it authenticationapi-mysql mysql -u root -p
+
+# Rebuild the API image
+docker compose build --no-cache java-api
 ```
+
+### Why mysql_native_password?
+
+MySQL 8.0 defaults to `caching_sha2_password`, but the Java JDBC driver (`mysql-connector-java`) struggles with this plugin over Docker's bridge network. The error "Host not allowed" is misleading — the real issue is the auth handshake failing. The fix is `init.sh` which recreates the appuser with `IDENTIFIED WITH mysql_native_password`.
+
+## CI/CD Pipeline
+
+Every push to `main` triggers [GitHub Actions](.github/workflows/docker.yml):
+
+```
+Checkout → cp .env → Buildx → docker build → docker compose up -d
+                                              ↓
+                                         Wait MySQL (60s)
+                                              ↓
+                                         Grant permissions (retry 10x)
+                                              ↓
+                                         Wait API (120s)
+                                              ↓
+                                         Check / Stop (down -v)
+```
+
+| Step | What it does |
+|------|-------------|
+| **Wait for MySQL** | Polls `docker inspect` for health status (up to 60s). Exit 1 if MySQL never becomes healthy. |
+| **Grant permissions** | Runs `docker exec` to ensure appuser exists with `mysql_native_password`. Retries 10 times with 2s intervals. This is a safety net for volume-reuse scenarios. |
+| **Wait for API** | Polls container health status (up to 120s). |
+| **Stop containers** | `docker compose down -v` removes the MySQL volume, ensuring every CI run starts fresh. |
+
+### Known Pitfall: MYSQL_PWD
+
+Never set `MYSQL_PWD` in `docker-compose.yml`. The MySQL entrypoint's `docker_setup_db()` calls `mysql -u root` (without `-p`), intending to send an empty password (root starts with empty password from `--initialize-insecure`). If `MYSQL_PWD` is set, `libmysqlclient` reads it and sends that value instead → "Access denied" → ALTER USER fails → root stays empty → downstream problems.
 
 ## Project Structure
 
@@ -187,12 +264,16 @@ Authentication-API-with-JWT/
 │       ├── HttpsUtils.java
 │       └── ...
 ├── init-db/
-│   └── init.sql             # Database initialization
+│   ├── init.sh              # Creates appuser with mysql_native_password
+│   └── init.sql             # Creates users table + index
 ├── target/                 # Build output (generated)
 ├── pom.xml                # Maven configuration
 ├── Dockerfile            # Container definition
 ├── docker-compose.yml     # Docker Compose configuration
-├── .env.example        # Environment template
+├── .env.example          # Environment template
+├── .github/
+│   └── workflows/
+│       └── docker.yml    # GitHub Actions CI pipeline
 └── README.md
 ```
 
