@@ -19,3 +19,6 @@ target/
 # IDE
 .idea/
 *.iml
+
+# Open Code
+AGENTS.md
