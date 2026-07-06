@@ -46,7 +46,7 @@ jobs:
 
       - name: Grant MySQL permissions
         run: |
-          SQL="DROP USER IF EXISTS 'appuser'@'%'; CREATE USER 'appuser'@'%' IDENTIFIED WITH mysql_native_password BY 'appuserpass'; GRANT ALL PRIVILEGES ON authdb.* TO 'appuser'@'%'; FLUSH PRIVILEGES;"
+          SQL="DROP USER IF EXISTS 'appuser'@'%'; CREATE USER 'appuser'@'%' IDENTIFIED WITH mysql_native_password BY 'apppass'; GRANT ALL PRIVILEGES ON authdb.* TO 'appuser'@'%'; FLUSH PRIVILEGES;"
           echo "=== Granting appuser permissions ==="
           for i in $(seq 1 10); do
             echo "${SQL}" | docker exec -i authenticationapi-mysql \
