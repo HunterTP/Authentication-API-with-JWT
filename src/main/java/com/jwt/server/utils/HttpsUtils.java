@@ -1,5 +1,6 @@
 package com.jwt.server.utils;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.net.InetSocketAddress;
 import java.security.KeyStore;
@@ -37,9 +38,32 @@ public class HttpsUtils {
                 return null;
             }
 
-            KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
             String keystorePath = (Config.KEYSTORE_PATH != null && !Config.KEYSTORE_PATH.isEmpty())
                 ? Config.KEYSTORE_PATH : "keystore.jks";
+
+            File ksFile = new File(keystorePath);
+            if (!ksFile.exists()) {
+                log.info("Keystore not found, generating self-signed certificate...");
+                ProcessBuilder pb = new ProcessBuilder(
+                    "keytool", "-genkeypair", "-alias", "selfsigned",
+                    "-keyalg", "RSA", "-keysize", "2048",
+                    "-validity", "3650", "-storetype", "PKCS12",
+                    "-keystore", keystorePath,
+                    "-storepass", storepass, "-keypass", keypass,
+                    "-noprompt",
+                    "-dname", "CN=localhost, OU=Dev, O=Authentication-API, L=Unknown, ST=Unknown, C=Unknown"
+                );
+                pb.inheritIO();
+                Process p = pb.start();
+                int exitCode = p.waitFor();
+                if (exitCode != 0) {
+                    log.error("keytool failed with exit code {}", exitCode);
+                    return null;
+                }
+                log.info("Self-signed keystore generated: {}", keystorePath);
+            }
+
+            KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
             try (FileInputStream fis = new FileInputStream(keystorePath)) {
                 ks.load(fis, storepass.toCharArray());
             }
