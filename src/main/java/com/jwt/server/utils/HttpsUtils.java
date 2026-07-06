@@ -7,6 +7,9 @@ import java.security.KeyStore;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.jwt.server.handlers.DeleteUserHandler;
 import com.jwt.server.handlers.HealthHandler;
 import com.jwt.server.handlers.LoginHandler;
@@ -19,53 +22,94 @@ import com.sun.net.httpserver.HttpsServer;
 
 public class HttpsUtils {
 
-    private static final String STROREPASS = System.getenv("storepass");
-    private static final String KEYPASS = System.getenv("keypass");
-    private static final String KEYSTORE_PATH = System.getenv("KEYSTORE_PATH");
+    private static final Logger log = LoggerFactory.getLogger(HttpsUtils.class);
 
     public static HttpsServer createHttpsServer() throws Exception {
-        
-        HttpsServer server = HttpsServer.create(new InetSocketAddress(8443), 0);
-        
+
+        HttpsServer server = HttpsServer.create(new InetSocketAddress(Config.PORT), 0);
+
         try {
-                // Load Key (keystore.jks)
-                char[] storepass = STROREPASS.toCharArray();
-                KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
-                String keystorePath = (KEYSTORE_PATH != null && !KEYSTORE_PATH.isEmpty()) ? KEYSTORE_PATH : "keystore.jks";
-                try (FileInputStream fis = new FileInputStream(keystorePath)) {
-                    ks.load(fis, storepass);
-                }
+            String storepass = Config.KEYSTORE_PASS;
+            String keypass = Config.KEY_PASS;
 
-                // Initialise KeyManager
-                KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
-                kmf.init(ks, KEYPASS.toCharArray());
-
-                // Create SSLContext
-                SSLContext sslContext = SSLContext.getInstance("TLS");
-                sslContext.init(kmf.getKeyManagers(), null, null);
-
-                // Connect SSLContext with HttpsServer
-                server.setHttpsConfigurator(new HttpsConfigurator(sslContext) {
-                    @Override
-                    public void configure(HttpsParameters params) {
-                        SSLContext c = getSSLContext();
-                        params.setSSLParameters(c.getDefaultSSLParameters());
-                    }
-                });
-
-                // Register Endpoints
-                server.createContext("/auth/register", new RegisterHandler());
-                server.createContext("/auth/login", new LoginHandler());
-                server.createContext("/auth/user/delete", new DeleteUserHandler());
-                server.createContext("/auth/user/password", new UpdatePasswordHandler());
-                server.createContext("/auth/user/username", new UpdateUsernameHandler());
-                server.createContext("/api/health", new HealthHandler());
-
-                server.start();
-            } catch (java.security.KeyStoreException | java.security.NoSuchAlgorithmException | java.security.UnrecoverableKeyException | java.security.KeyManagementException | java.io.IOException e) {
-                System.err.println("Error with the SSL Initialization: " + e.getMessage());
-                server = null;
+            if (storepass == null || keypass == null) {
+                log.error("KEYSTORE_PASS and KEY_PASS must be set");
+                return null;
             }
-            return server;
+
+            KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
+            String keystorePath = (Config.KEYSTORE_PATH != null && !Config.KEYSTORE_PATH.isEmpty())
+                ? Config.KEYSTORE_PATH : "keystore.jks";
+            try (FileInputStream fis = new FileInputStream(keystorePath)) {
+                ks.load(fis, storepass.toCharArray());
+            }
+
+            KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+            kmf.init(ks, keypass.toCharArray());
+
+            SSLContext sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(kmf.getKeyManagers(), null, null);
+
+            server.setHttpsConfigurator(new HttpsConfigurator(sslContext) {
+                @Override
+                public void configure(HttpsParameters params) {
+                    SSLContext c = getSSLContext();
+                    params.setSSLParameters(c.getDefaultSSLParameters());
+                }
+            });
+
+            String[] paths = {
+                "/auth/register",       "/v1/auth/register",
+                "/auth/login",           "/v1/auth/login",
+                "/auth/user/delete",     "/v1/auth/user/delete",
+                "/auth/user/password",   "/v1/auth/user/password",
+                "/auth/user/username",   "/v1/auth/user/username",
+                "/api/health",           "/v1/api/health"
+            };
+
+            RegisterHandler registerHandler = new RegisterHandler();
+            LoginHandler loginHandler = new LoginHandler();
+            DeleteUserHandler deleteUserHandler = new DeleteUserHandler();
+            UpdatePasswordHandler updatePasswordHandler = new UpdatePasswordHandler();
+            UpdateUsernameHandler updateUsernameHandler = new UpdateUsernameHandler();
+            HealthHandler healthHandler = new HealthHandler();
+
+            for (int i = 0; i < paths.length; i++) {
+                switch (paths[i]) {
+                    case "/auth/register":
+                    case "/v1/auth/register":
+                        server.createContext(paths[i], registerHandler);
+                        break;
+                    case "/auth/login":
+                    case "/v1/auth/login":
+                        server.createContext(paths[i], loginHandler);
+                        break;
+                    case "/auth/user/delete":
+                    case "/v1/auth/user/delete":
+                        server.createContext(paths[i], deleteUserHandler);
+                        break;
+                    case "/auth/user/password":
+                    case "/v1/auth/user/password":
+                        server.createContext(paths[i], updatePasswordHandler);
+                        break;
+                    case "/auth/user/username":
+                    case "/v1/auth/user/username":
+                        server.createContext(paths[i], updateUsernameHandler);
+                        break;
+                    case "/api/health":
+                    case "/v1/api/health":
+                        server.createContext(paths[i], healthHandler);
+                        break;
+                }
+            }
+
+            server.start();
+            log.info("HTTPS server listening on port {}", Config.PORT);
+
+        } catch (Exception e) {
+            log.error("SSL initialization failed: {}", e.getMessage());
+            server = null;
+        }
+        return server;
     }
 }

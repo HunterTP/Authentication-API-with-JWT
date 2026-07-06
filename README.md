@@ -82,27 +82,33 @@ All configuration is done via environment variables:
 
 ## API Endpoints
 
+Both legacy (`/auth/...`) and versioned (`/v1/auth/...`) paths are supported.
+
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
-| POST | `/auth/register` | Register new user | No |
-| POST | `/auth/login` | Login and get token | No |
-| DELETE | `/auth/user/delete` | Delete user | Yes |
-| PUT | `/auth/user/password` | Update password | Yes |
-| PUT | `/auth/user/username` | Update username | Yes |
-| GET | `/api/health` | Health check | No |
+| POST | `/v1/auth/register` | Register new user | No |
+| POST | `/v1/auth/login` | Login and get token | No |
+| DELETE | `/v1/auth/user/delete` | Delete user | Yes |
+| PUT | `/v1/auth/user/password` | Update password | Yes |
+| PUT | `/v1/auth/user/username` | Update username | Yes |
+| GET | `/v1/api/health` | Health check | No |
+
+> Legacy paths (`/auth/register`, `/auth/login`, etc.) also work for backward compatibility.
 
 ### Example Usage
 
+All examples use the versioned path (`/v1/`). Legacy paths work identically.
+
 #### Register a new user:
 ```bash
-curl -k -X POST https://localhost:8443/auth/register \
+curl -k -X POST https://localhost:8443/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{"username": "john", "password": "secret123"}'
 ```
 
 #### Login:
 ```bash
-curl -k -X POST https://localhost:8443/auth/login \
+curl -k -X POST https://localhost:8443/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username": "john", "password": "secret123"}'
 ```
@@ -118,7 +124,7 @@ Response:
 
 #### Authenticated Request:
 ```bash
-curl -k -X DELETE https://localhost:8443/auth/user/delete \
+curl -k -X DELETE https://localhost:8443/v1/auth/user/delete \
   -H "Authorization: Bearer <your_token>"
 ```
 
@@ -299,21 +305,34 @@ Never set `MYSQL_PWD` in `docker-compose.yml`. The MySQL entrypoint's `docker_se
 
 ```
 Authentication-API-with-JWT/
-├── src/main/java/com/jwt/server/
-│   ├── Main.java              # Application entry point
-│   ├── handlers/            # HTTP request handlers
-│   │   ├── RegisterHandler.java
-│   │   ├── LoginHandler.java
-│   │   ├── DeleteUserHandler.java
-│   │   ├── UpdatePasswordHandler.java
-│   │   ├── UpdateUsernameHandler.java
-│   │   └── HealthHandler.java
-│   └── utils/               # Utility classes
-│       ├── SqlUtils.java
-│       ├── JwtUtils.java
-│       ├── JbcryptUtils.java
-│       ├── HttpsUtils.java
-│       └── ...
+├── src/
+│   ├── main/java/com/jwt/server/
+│   │   ├── Main.java              # Application entry point
+│   │   ├── handlers/              # HTTP request handlers
+│   │   │   ├── RegisterHandler.java
+│   │   │   ├── LoginHandler.java
+│   │   │   ├── DeleteUserHandler.java
+│   │   │   ├── UpdatePasswordHandler.java
+│   │   │   ├── UpdateUsernameHandler.java
+│   │   │   └── HealthHandler.java
+│   │   └── utils/                 # Utility classes
+│   │       ├── Config.java
+│   │       ├── CorsUtils.java
+│   │       ├── HttpsUtils.java
+│   │       ├── JbcryptUtils.java
+│   │       ├── JsonUtils.java
+│   │       ├── JwtUtils.java
+│   │       ├── RateLimiter.java
+│   │       ├── ResponseUtils.java
+│   │       ├── SqlUtils.java
+│   │       └── ValidationUtils.java
+│   ├── main/resources/
+│   │   └── logback.xml
+│   └── test/java/com/jwt/server/utils/
+│       ├── ConfigTest.java
+│       ├── JsonUtilsTest.java
+│       ├── RateLimiterTest.java
+│       └── ValidationUtilsTest.java
 ├── init-db/
 │   ├── init.sh              # Creates appuser with mysql_native_password
 │   └── init.sql             # Creates users table + index

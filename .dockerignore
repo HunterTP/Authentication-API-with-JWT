@@ -1,0 +1,12 @@
+target/
+.env
+.git
+.gitignore
+CHECKLIST.md
+AGENTS.md
+README.md
+docs/
+*.md
+.vscode/
+.idea/
+*.iml

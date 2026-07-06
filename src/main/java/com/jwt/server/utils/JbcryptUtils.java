@@ -4,13 +4,13 @@ import org.mindrot.jbcrypt.BCrypt;
 
 public class JbcryptUtils {
 
-    private static final int WORKLOAD = 15;
-    private static final String PEPPER = System.getenv("BCRYPT_PEPPER");
+    private static final int WORKLOAD = Config.BCRYPT_WORKLOAD;
+    private static final String PEPPER = Config.BCRYPT_PEPPER;
 
     public String[] Hash(String password) {
         String[] hash = new String[2];
         hash[0] = BCrypt.gensalt(WORKLOAD);
-        hash[1] = BCrypt.hashpw(password, hash[0] + PEPPER);
+        hash[1] = BCrypt.hashpw(password, hash[0] + (PEPPER != null ? PEPPER : ""));
         return hash;
     }
 

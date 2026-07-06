@@ -1,36 +1,40 @@
 package com.jwt.server;
 
-import java.io.IOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.jwt.server.utils.HttpsUtils;
 import com.jwt.server.utils.SqlUtils;
 import com.sun.net.httpserver.HttpsServer;
 
 public class Main {
-    
-    public static void main(String[] args) throws IOException {
-        // Test Database connection before starting the server
+
+    private static final Logger log = LoggerFactory.getLogger(Main.class);
+    private static HttpsServer server;
+
+    public static void main(String[] args) {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            log.info("Shutting down...");
+            if (server != null) {
+                server.stop(2);
+            }
+            log.info("Server stopped");
+        }));
+
         if (!SqlUtils.testConnection()) {
+            log.error("Database connection failed. Exiting.");
             return;
         }
-        
-        // Start HTTPS server
+
         try {
-            HttpsServer server = HttpsUtils.createHttpsServer();
+            server = HttpsUtils.createHttpsServer();
             if (server == null) {
-                System.err.println("ERROR: HTTPS server could not be started.");
+                log.error("HTTPS server could not be started. Exiting.");
                 return;
             }
+            log.info("Server is ready on https://localhost:{}", com.jwt.server.utils.Config.PORT);
         } catch (Exception e) {
-            System.err.println("ERROR: " + e.getMessage());
-            return;
+            log.error("Fatal error: {}", e.getMessage());
         }
-        
-        System.out.println("\nHTTPS server is running on https://localhost:8443");
-        System.out.println("  POST /auth/register      - Create new user");
-        System.out.println("  POST /auth/login         - Login (returns token)");
-        System.out.println("  DELETE /auth/user/delete - Delete user (requires token)");
-        System.out.println("  PUT /auth/user/password  - Update user password (requires token)");
-        System.out.println("  PUT /auth/user/username  - Update user username (requires token)");
     }
 }
