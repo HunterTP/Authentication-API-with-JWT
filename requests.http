@@ -1,33 +1,15 @@
 ### ============================================
 ### JWT REST API Tests
 ### Server: https://localhost:8443
+### Both /auth/* and /v1/auth/* paths are supported
 ### ============================================
 
-### 1. Alle Benutzer anzeigen (öffentlich)
-GET https://localhost:8443/api/users
+### 1. Healthcheck
+GET https://localhost:8443/v1/api/health
 Content-Type: application/json
 
-### 2. Neuen Benutzer anlegen (öffentlich)
-POST https://localhost:8443/api/register
-Content-Type: application/json
-
-{
-  "username": "alice",
-  "password": "secret123"
-}
-
-### 2b. Noch ein Benutzer
-POST https://localhost:8443/api/register
-Content-Type: application/json
-
-{
-  "username": "bob",
-  "password": "geheim456"
-}
-
-### 3. Login - Benutzer alice
-# @name loginRequestAlice
-POST https://localhost:8443/api/login
+### 2. Register new user
+POST https://localhost:8443/v1/auth/register
 Content-Type: application/json
 
 {
@@ -35,12 +17,8 @@ Content-Type: application/json
   "password": "secret123"
 }
 
-### Speichere Alices Token
-@auth_token = {{loginRequestAlice.response.body.token}}
-
-## 4. Login - Benutzer bob
-# @name loginRequestBob
-POST https://localhost:8443/api/login
+### 2b. Register another user
+POST https://localhost:8443/v1/auth/register
 Content-Type: application/json
 
 {
@@ -48,86 +26,119 @@ Content-Type: application/json
   "password": "geheim456"
 }
 
-### Speichere Bobs Token
-@bob_token = {{loginRequestBob.response.body.token}}
-
-### 5. Geschützten Endpunkt aufrufen (mit Token von alice)
-GET https://localhost:8443/api/profile
-Authorization: Bearer {{auth_token}}
-Content-Type: application/json
-
-### 6. Geschützten Endpunkt mit Bobs Token
-GET https://localhost:8443/api/profile
-Authorization: Bearer {{bob_token}}
-Content-Type: application/json
-
-### 7. Geschützten Endpunkt OHNE Token (sollte 401 zurückgeben)
-GET https://localhost:8443/api/profile
-Content-Type: application/json
-
-### 8. Geschützten Endpunkt mit FALSchem Token (sollte 401 zurückgeben)
-GET https://localhost:8443/api/profile
-Authorization: Bearer falscher.token.hier
-Content-Type: application/json
-
-### 9. Login mit falschem Passwort (sollte 401 zurückgeben)
-POST https://localhost:8443/api/login
+### 3. Login as alice (save token)
+# @name loginAlice
+POST https://localhost:8443/v1/auth/login
 Content-Type: application/json
 
 {
   "username": "alice",
-  "password": "falsches_passwort"
+  "password": "secret123"
 }
 
-### 10. Benutzer anlegen der bereits existiert (sollte 409 zurückgeben)
-POST https://localhost:8443/api/user
+### Save Alice's token
+@alice_token = {{loginAlice.response.body.token}}
+
+### 4. Login as bob (save token)
+# @name loginBob
+POST https://localhost:8443/v1/auth/login
 Content-Type: application/json
 
 {
-  "username": "alice",
-  "password": "irgendein_passwort"
+  "username": "bob",
+  "password": "geheim456"
 }
 
-### 11. Benutzer anlegen ohne Passwort (sollte 400 zurückgeben)
-POST https://localhost:8443/api/user
+### Save Bob's token
+@bob_token = {{loginBob.response.body.token}}
+
+### 5. Register with short password (should return 400)
+POST https://localhost:8443/v1/auth/register
 Content-Type: application/json
 
 {
-  "username": "nur_username"
+  "username": "charlie",
+  "password": "short"
 }
 
-### 12. Login ohne Passwort (sollte 400 zurückgeben)
-POST https://localhost:8443/api/login
+### 6. Register with invalid username (should return 400)
+POST https://localhost:8443/v1/auth/register
+Content-Type: application/json
+
+{
+  "username": "user@name!",
+  "password": "password123"
+}
+
+### 7. Login without password (should return 400)
+POST https://localhost:8443/v1/auth/login
 Content-Type: application/json
 
 {
   "username": "alice"
 }
 
-### 13. Alice Konto abfragen
-GET https://localhost:8443/api/konto
-Authorization: Bearer {{auth_token}}
+### 8. Login wrong password (should return 401)
+POST https://localhost:8443/v1/auth/login
 Content-Type: application/json
-
-### 14. Bob Konto abfragen 
-GET https://localhost:8443/api/konto
-Authorization: Bearer {{bob_token}}
-Content-Type: application/json
-
-### 2. Kontostand aktualisieren
-POST https://localhost:8443/api/konto
-Content-Type: application/json
-Authorization: Bearer {{bob_token}}
 
 {
-  "betrag": 1000
+  "username": "alice",
+  "password": "wrong_password"
 }
+
+### 9. Login with legacy path (/auth/ instead of /v1/auth/)
+POST https://localhost:8443/auth/login
+Content-Type: application/json
+
+{
+  "username": "alice",
+  "password": "secret123"
+}
+
+### 10. Update password (requires token)
+PUT https://localhost:8443/v1/auth/user/password
+Authorization: Bearer {{alice_token}}
+Content-Type: application/json
+
+{
+  "password": "newSecret456"
+}
+
+### 11. Update username (requires token)
+PUT https://localhost:8443/v1/auth/user/username
+Authorization: Bearer {{alice_token}}
+Content-Type: application/json
+
+{
+  "username": "alice_updated"
+}
+
+### 12. Delete user (requires token)
+DELETE https://localhost:8443/v1/auth/user/delete
+Authorization: Bearer {{bob_token}}
+Content-Type: application/json
+
+### 13. Access without token (should return 401)
+DELETE https://localhost:8443/v1/auth/user/delete
+Content-Type: application/json
+
+### 14. Wrong HTTP method (should return 405)
+GET https://localhost:8443/v1/auth/register
+Content-Type: application/json
+
+### 15. Wrong path (should return 404)
+GET https://localhost:8443/v1/auth/nonexistent
+Content-Type: application/json
+
 ### ============================================
-### Erwartete Status Codes:
-### 200 OK - Erfolg
-### 201 Created - Benutzer angelegt
-### 400 Bad Request - Fehlende Felder
-### 401 Unauthorized - Falscher Login / Kein Token
-### 405 Method Not Allowed - Falsche HTTP Methode
-### 409 Conflict - Benutzername existiert bereits
+### Expected status codes:
+### 200 OK - Success
+### 201 Created - User registered
+### 400 Bad Request - Missing/invalid fields
+### 401 Unauthorized - Login failed / No token
+### 405 Method Not Allowed - Wrong HTTP method
+### 409 Conflict - Username already exists
+### 429 Too Many Requests - Rate limit exceeded
+### 503 Service Unavailable - Database down
 ### ============================================
