@@ -19,8 +19,8 @@ public final class Config {
 
     // Keystore
     public static final String KEYSTORE_PATH = System.getenv("KEYSTORE_PATH");
-    public static final String KEYSTORE_PASS = System.getenv("KEYSTORE_PASS");
-    public static final String KEY_PASS = System.getenv("KEY_PASS");
+    public static final String KEYSTORE_PASS = System.getenv().getOrDefault("KEYSTORE_PASS", "123456");
+    public static final String KEY_PASS = System.getenv().getOrDefault("KEY_PASS", "123456");
 
     // Validation
     public static final int USERNAME_MIN_LENGTH = 3;
