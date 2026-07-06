@@ -54,9 +54,21 @@ public class UpdateUsernameHandler implements HttpHandler {
             return;
         }
 
-        String oldUsername = JwtUtils.extractUsername(token);
+        String oldUsername;
         try {
-            SqlUtils.updateUsername(oldUsername, newUsername);
+            oldUsername = JwtUtils.extractUsername(token);
+        } catch (Exception e) {
+            ResponseUtils.sendError(exchange, 401, "Invalid token");
+            return;
+        }
+
+        try {
+            boolean updated = SqlUtils.updateUsername(oldUsername, newUsername);
+            if (!updated) {
+                ResponseUtils.sendError(exchange, 404, "User not found");
+                log.warn("Username update failed: {} not found", oldUsername);
+                return;
+            }
             String response = "{\"message\": \"Username updated\"}";
             ResponseUtils.send(exchange, 200, response);
             log.info("Username changed from {} to {}", oldUsername, newUsername);

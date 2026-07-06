@@ -48,8 +48,6 @@ services:
       # Keystore pass
       KEYSTORE_PASS: ${KEYSTORE_PASS:-123456}
       KEY_PASS: ${KEY_PASS:-123456}
-      storepass: ${KEYSTORE_PASS:-123456}
-      keypass: ${KEY_PASS:-123456}
       # Optional: custom keystore path (mount volume below)
       # KEYSTORE_PATH: /app/custom-keystore.jks
     # volumes:

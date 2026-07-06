@@ -54,9 +54,21 @@ public class UpdatePasswordHandler implements HttpHandler {
             return;
         }
 
-        String username = JwtUtils.extractUsername(token);
+        String username;
         try {
-            SqlUtils.updatePassword(username, newPassword);
+            username = JwtUtils.extractUsername(token);
+        } catch (Exception e) {
+            ResponseUtils.sendError(exchange, 401, "Invalid token");
+            return;
+        }
+
+        try {
+            boolean updated = SqlUtils.updatePassword(username, newPassword);
+            if (!updated) {
+                ResponseUtils.sendError(exchange, 404, "User not found");
+                log.warn("Password update failed: {} not found", username);
+                return;
+            }
             String response = "{\"message\": \"Password updated\"}";
             ResponseUtils.send(exchange, 200, response);
             log.info("Password updated for {}", username);

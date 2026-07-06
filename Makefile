@@ -1,15 +1,15 @@
-# Makefile für einfache Befehle
+# Makefile for common commands
 
 .PHONY: help build start stop logs clean shell
 
 help:
-	@echo "Verfügbare Befehle:"
-	@echo "  make build   - Build Docker-Images"
-	@echo "  make start   - Start Container"
-	@echo "  make stop    - Stop Container"
-	@echo "  make logs    - Show Logs"
-	@echo "  make clean   - Delete Container + Volumes"
-	@echo "  make shell   - Open Shell inside API-Container"
+	@echo "Available commands:"
+	@echo "  make build   - Build Docker images"
+	@echo "  make start   - Start containers"
+	@echo "  make stop    - Stop containers"
+	@echo "  make logs    - Show logs"
+	@echo "  make clean   - Delete containers + volumes"
+	@echo "  make shell   - Open shell inside API container"
 
 build:
 	docker-compose build

@@ -22,7 +22,7 @@ public class SqlUtils {
         
         // Development fallback
         if (url == null || url.isEmpty()) {
-            url = "jdbc:mysql://localhost:3306/razorshark";
+            url = "jdbc:mysql://localhost:3306/authdb";
         }
         if (user == null || user.isEmpty()) {
             user = "root";
@@ -68,8 +68,13 @@ public class SqlUtils {
             pstmt.setString(1, username);
             pstmt.setString(2, hash[1]);
             pstmt.setString(3, hash[0]);
-            pstmt.executeUpdate();
-            
+            int rows = pstmt.executeUpdate();
+
+            if (rows == 0) {
+                ResponseUtils.sendError(exchange, 500, "User could not be created");
+                return;
+            }
+
             String response = "{\"message\": \"User " + username + " was created\"}";
             ResponseUtils.send(exchange, 201, response);
             
@@ -83,14 +88,14 @@ public class SqlUtils {
     }
 
     // Deletes a user
-    public static void deleteUser(String username) throws Exception {
+    public static boolean deleteUser(String username) throws Exception {
         String sql = "DELETE FROM users WHERE username = ?";
         
         try (Connection conn = getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
             pstmt.setString(1, username);
-            pstmt.executeUpdate();
+            return pstmt.executeUpdate() > 0;
             
         } catch (Exception e) {
             throw new Exception("Database error: " + e.getMessage());
@@ -98,7 +103,7 @@ public class SqlUtils {
     }
 
     // Updates a user's username
-    public static void updateUsername(String oldUsername, String newUsername) throws Exception {
+    public static boolean updateUsername(String oldUsername, String newUsername) throws Exception {
         String sql = "UPDATE users SET username = ? WHERE username = ?";
         
         try (Connection conn = getConnection();
@@ -106,14 +111,14 @@ public class SqlUtils {
             
             pstmt.setString(1, newUsername);
             pstmt.setString(2, oldUsername);
-            pstmt.executeUpdate();
+            return pstmt.executeUpdate() > 0;
             
         } catch (Exception e) {
             throw new Exception("Database error: " + e.getMessage());
         }
     }
 
-    public static void updatePassword(String username, String newPassword) throws Exception {
+    public static boolean updatePassword(String username, String newPassword) throws Exception {
         String sql = "UPDATE users SET password = ?, salt = ? WHERE username = ?";
         
         try (Connection conn = getConnection();
@@ -124,7 +129,7 @@ public class SqlUtils {
             pstmt.setString(1, hash[1]);
             pstmt.setString(2, hash[0]);
             pstmt.setString(3, username);
-            pstmt.executeUpdate();
+            return pstmt.executeUpdate() > 0;
             
         } catch (Exception e) {
             throw new Exception("Database error: " + e.getMessage());
@@ -133,13 +138,16 @@ public class SqlUtils {
 
     // Verify user credentials
     public static boolean checkUserCredentials(String username, String password) {
+        String hashedPassword = new JbcryptUtils().HashPassword(password, username);
+        if (hashedPassword == null) return false;
+
         String sql = "SELECT * FROM users WHERE username = ? AND password = ?";
         
         try (Connection conn = getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
             pstmt.setString(1, username);
-            pstmt.setString(2, new JbcryptUtils().HashPassword(password, username));
+            pstmt.setString(2, hashedPassword);
             ResultSet rs = pstmt.executeQuery();
             return rs.next();
             

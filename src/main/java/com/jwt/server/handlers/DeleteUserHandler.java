@@ -36,10 +36,21 @@ public class DeleteUserHandler implements HttpHandler {
         }
 
         String token = authHeader.substring(7);
-        String username = JwtUtils.extractUsername(token);
+        String username;
+        try {
+            username = JwtUtils.extractUsername(token);
+        } catch (Exception e) {
+            ResponseUtils.sendError(exchange, 401, "Invalid token");
+            return;
+        }
 
         try {
-            SqlUtils.deleteUser(username);
+            boolean deleted = SqlUtils.deleteUser(username);
+            if (!deleted) {
+                ResponseUtils.sendError(exchange, 404, "User not found");
+                log.warn("Delete failed: {} not found", username);
+                return;
+            }
             String response = "{\"message\": \"User " + username + " was deleted\"}";
             ResponseUtils.send(exchange, 200, response);
             log.info("User deleted: {}", username);

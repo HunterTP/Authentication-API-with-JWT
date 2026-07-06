@@ -33,7 +33,9 @@ public class LoginHandler implements HttpHandler {
             return;
         }
 
-        String clientIp = exchange.getRemoteAddress().getAddress().getHostAddress();
+        String clientIp = exchange.getRemoteAddress() != null
+            ? exchange.getRemoteAddress().getAddress().getHostAddress()
+            : "unknown";
 
         if (!rateLimiter.isAllowed(clientIp)) {
             log.warn("Rate limit exceeded for IP: {}", clientIp);

@@ -117,8 +117,7 @@ Response:
 ```json
 {
   "token": "eyJhbGciOiJIUzI1NiJ9...",
-  "type": "Bearer",
-  "expiresIn": 3600000
+  "message": "Login successful"
 }
 ```
 
