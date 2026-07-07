@@ -2,7 +2,9 @@ package com.jwt.server.utils;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 
 import javax.net.ssl.KeyManagerFactory;
@@ -98,39 +100,21 @@ public class HttpsUtils {
             UpdateUsernameHandler updateUsernameHandler = new UpdateUsernameHandler();
             HealthHandler healthHandler = new HealthHandler();
 
-            for (int i = 0; i < paths.length; i++) {
-                switch (paths[i]) {
-                    case "/auth/register":
-                    case "/v1/auth/register":
-                        server.createContext(paths[i], registerHandler);
-                        break;
-                    case "/auth/login":
-                    case "/v1/auth/login":
-                        server.createContext(paths[i], loginHandler);
-                        break;
-                    case "/auth/user/delete":
-                    case "/v1/auth/user/delete":
-                        server.createContext(paths[i], deleteUserHandler);
-                        break;
-                    case "/auth/user/password":
-                    case "/v1/auth/user/password":
-                        server.createContext(paths[i], updatePasswordHandler);
-                        break;
-                    case "/auth/user/username":
-                    case "/v1/auth/user/username":
-                        server.createContext(paths[i], updateUsernameHandler);
-                        break;
-                    case "/api/health":
-                    case "/v1/api/health":
-                        server.createContext(paths[i], healthHandler);
-                        break;
+            for (String path : paths) {
+                switch (path) {
+                    case "/auth/register", "/v1/auth/register" -> server.createContext(path, registerHandler);
+                    case "/auth/login", "/v1/auth/login" -> server.createContext(path, loginHandler);
+                    case "/auth/user/delete", "/v1/auth/user/delete" -> server.createContext(path, deleteUserHandler);
+                    case "/auth/user/password", "/v1/auth/user/password" -> server.createContext(path, updatePasswordHandler);
+                    case "/auth/user/username", "/v1/auth/user/username" -> server.createContext(path, updateUsernameHandler);
+                    case "/api/health", "/v1/api/health" -> server.createContext(path, healthHandler);
                 }
             }
 
             server.start();
             log.info("HTTPS server listening on port {}", Config.PORT);
 
-        } catch (Exception e) {
+        } catch (IOException | InterruptedException | GeneralSecurityException e) {
             log.error("SSL initialization failed: {}", e.getMessage());
             server = null;
         }
