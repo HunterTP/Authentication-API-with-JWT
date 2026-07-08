@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import com.jwt.server.utils.CorsUtils;
 import com.jwt.server.utils.JsonUtils;
+import com.jwt.server.utils.RequestUtils;
 import com.jwt.server.utils.ResponseUtils;
 import com.jwt.server.utils.SqlUtils;
 import com.jwt.server.utils.ValidationUtils;
@@ -27,6 +28,11 @@ public class RegisterHandler implements HttpHandler {
 
         if (!exchange.getRequestMethod().equals("POST")) {
             ResponseUtils.sendError(exchange, 405, "Only POST method is allowed");
+            return;
+        }
+
+        if (!RequestUtils.isJsonContentType(exchange)) {
+            ResponseUtils.sendError(exchange, 415, "Content-Type must be application/json");
             return;
         }
 

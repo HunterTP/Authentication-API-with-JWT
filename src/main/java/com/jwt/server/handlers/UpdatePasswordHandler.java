@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import com.jwt.server.utils.CorsUtils;
 import com.jwt.server.utils.JsonUtils;
 import com.jwt.server.utils.JwtUtils;
+import com.jwt.server.utils.RequestUtils;
 import com.jwt.server.utils.ResponseUtils;
 import com.jwt.server.utils.SqlUtils;
 import com.jwt.server.utils.ValidationUtils;
@@ -28,6 +29,11 @@ public class UpdatePasswordHandler implements HttpHandler {
 
         if (!exchange.getRequestMethod().equals("PUT")) {
             ResponseUtils.sendError(exchange, 405, "Only PUT method is allowed");
+            return;
+        }
+
+        if (!RequestUtils.isJsonContentType(exchange)) {
+            ResponseUtils.sendError(exchange, 415, "Content-Type must be application/json");
             return;
         }
 

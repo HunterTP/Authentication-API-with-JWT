@@ -6,10 +6,12 @@ import java.nio.charset.StandardCharsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.jwt.server.utils.AccountLocker;
 import com.jwt.server.utils.CorsUtils;
 import com.jwt.server.utils.JsonUtils;
 import com.jwt.server.utils.JwtUtils;
 import com.jwt.server.utils.RateLimiter;
+import com.jwt.server.utils.RequestUtils;
 import com.jwt.server.utils.ResponseUtils;
 import com.jwt.server.utils.SqlUtils;
 import com.jwt.server.utils.ValidationUtils;
@@ -20,6 +22,7 @@ public class LoginHandler implements HttpHandler {
 
     private static final Logger log = LoggerFactory.getLogger(LoginHandler.class);
     private static final RateLimiter rateLimiter = new RateLimiter();
+    private static final AccountLocker accountLocker = new AccountLocker();
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
@@ -30,6 +33,11 @@ public class LoginHandler implements HttpHandler {
 
         if (!exchange.getRequestMethod().equals("POST")) {
             ResponseUtils.sendError(exchange, 405, "Only POST method is allowed");
+            return;
+        }
+
+        if (!RequestUtils.isJsonContentType(exchange)) {
+            ResponseUtils.sendError(exchange, 415, "Content-Type must be application/json");
             return;
         }
 
@@ -64,12 +72,20 @@ public class LoginHandler implements HttpHandler {
             return;
         }
 
+        if (accountLocker.isLocked(username)) {
+            log.warn("Account locked for {}", username);
+            ResponseUtils.sendError(exchange, 429, "Account is temporarily locked. Try again later.");
+            return;
+        }
+
         if (SqlUtils.checkUserCredentials(username, password)) {
+            accountLocker.reset(username);
             String token = JwtUtils.generateToken(username);
             String response = "{\"token\":\"" + token + "\", \"message\":\"Login successful\"}";
             ResponseUtils.send(exchange, 200, response);
             log.info("Login successful: {}", username);
         } else {
+            accountLocker.recordFailedAttempt(username);
             log.warn("Login failed for {}", username);
             ResponseUtils.sendError(exchange, 401, "username or password is incorrect");
         }

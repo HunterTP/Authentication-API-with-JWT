@@ -35,7 +35,8 @@ public class SqlUtils {
         DB_USER = user;
         DB_PASSWORD = password;
         
-        System.out.println("Database Config loaded: " + DB_URL);
+        String logUrl = DB_URL.replaceAll("(?<=://)[^:]+:[^@]+@", "***:***@");
+        System.out.println("Database config loaded: " + logUrl);
     }
 
     // Returns a new database connection

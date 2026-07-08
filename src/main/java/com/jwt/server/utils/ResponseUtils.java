@@ -3,12 +3,21 @@ package com.jwt.server.utils;
 import java.io.IOException;
 import java.io.OutputStream;
 
+import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 
 public class ResponseUtils {
-    // Sends a JSON response with the given status code and message
+
+    public static void addSecurityHeaders(Headers headers) {
+        headers.set("Content-Type", "application/json");
+        headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains");
+        headers.set("Content-Security-Policy", "default-src 'none'");
+        headers.set("X-Content-Type-Options", "nosniff");
+        headers.set("X-Frame-Options", "DENY");
+    }
+
     public static void send(HttpExchange exchange, int statusCode, String response) throws IOException {
-        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        addSecurityHeaders(exchange.getResponseHeaders());
         exchange.sendResponseHeaders(statusCode, response.getBytes().length);
         
         try (OutputStream os = exchange.getResponseBody()) {

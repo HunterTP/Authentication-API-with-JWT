@@ -31,4 +31,8 @@ public final class Config {
     // Rate Limiting
     public static final int RATE_LIMIT_MAX_REQUESTS = 20;
     public static final long RATE_LIMIT_WINDOW_MS = 60_000;
+
+    // Account Jailing
+    public static final int ACCOUNT_MAX_ATTEMPTS = 5;
+    public static final long ACCOUNT_LOCK_DURATION_MS = 900_000;
 }
