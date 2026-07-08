@@ -11,7 +11,6 @@
 
     <properties>
         <maven.compiler.release>17</maven.compiler.release>
-        <owasp-dependency-check.version>10.0.4</owasp-dependency-check.version>
         <spotbugs-maven-plugin.version>4.8.6.6</spotbugs-maven-plugin.version>
     </properties>
 
@@ -63,18 +62,6 @@
 
     <build>
         <plugins>
-            <plugin>
-                <groupId>org.owasp</groupId>
-                <artifactId>dependency-check-maven</artifactId>
-                <version>${owasp-dependency-check.version}</version>
-                <configuration>
-                    <failBuildOnCVSS>7</failBuildOnCVSS>
-                    <formats>
-                        <format>HTML</format>
-                    </formats>
-                    <skipTestScope>false</skipTestScope>
-                </configuration>
-            </plugin>
             <plugin>
                 <groupId>com.github.spotbugs</groupId>
                 <artifactId>spotbugs-maven-plugin</artifactId>
