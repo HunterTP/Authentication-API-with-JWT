@@ -1,14 +1,17 @@
 ### ============================================
-### JWT REST API Tests
+### JWT REST API Test Suite
 ### Server: https://localhost:8443
 ### Both /auth/* and /v1/auth/* paths are supported
+### Run sequentially — each step depends on the previous
 ### ============================================
 
-### 1. Healthcheck
+### ========== SETUP ==========
+
+### 1. Healthcheck (should return 200 + database:true)
 GET https://localhost:8443/v1/api/health
 Content-Type: application/json
 
-### 2. Register new user
+### 2. Register alice (should return 201)
 POST https://localhost:8443/v1/auth/register
 Content-Type: application/json
 
@@ -17,7 +20,7 @@ Content-Type: application/json
   "password": "secret123"
 }
 
-### 2b. Register another user
+### 3. Register bob (should return 201)
 POST https://localhost:8443/v1/auth/register
 Content-Type: application/json
 
@@ -26,7 +29,9 @@ Content-Type: application/json
   "password": "geheim456"
 }
 
-### 3. Login as alice (save token)
+### ========== LOGIN + TOKEN SAVE ==========
+
+### 4. Login as alice (save token)
 # @name loginAlice
 POST https://localhost:8443/v1/auth/login
 Content-Type: application/json
@@ -39,7 +44,7 @@ Content-Type: application/json
 ### Save Alice's token
 @alice_token = {{loginAlice.response.body.token}}
 
-### 4. Login as bob (save token)
+### 5. Login as bob (save token)
 # @name loginBob
 POST https://localhost:8443/v1/auth/login
 Content-Type: application/json
@@ -52,7 +57,9 @@ Content-Type: application/json
 ### Save Bob's token
 @bob_token = {{loginBob.response.body.token}}
 
-### 5. Register with short password (should return 400)
+### ========== REGISTRATION / LOGIN ERRORS ==========
+
+### 6. Register with short password (should return 400)
 POST https://localhost:8443/v1/auth/register
 Content-Type: application/json
 
@@ -61,7 +68,7 @@ Content-Type: application/json
   "password": "short"
 }
 
-### 6. Register with invalid username (should return 400)
+### 7. Register with invalid username (should return 400)
 POST https://localhost:8443/v1/auth/register
 Content-Type: application/json
 
@@ -70,7 +77,16 @@ Content-Type: application/json
   "password": "password123"
 }
 
-### 7. Login without password (should return 400)
+### 8. Register duplicate username (should return 409)
+POST https://localhost:8443/v1/auth/register
+Content-Type: application/json
+
+{
+  "username": "alice",
+  "password": "secret123"
+}
+
+### 9. Login without password (should return 400)
 POST https://localhost:8443/v1/auth/login
 Content-Type: application/json
 
@@ -78,7 +94,7 @@ Content-Type: application/json
   "username": "alice"
 }
 
-### 8. Login wrong password (should return 401)
+### 10. Login wrong password (should return 401)
 POST https://localhost:8443/v1/auth/login
 Content-Type: application/json
 
@@ -87,7 +103,7 @@ Content-Type: application/json
   "password": "wrong_password"
 }
 
-### 9. Login with legacy path (/auth/ instead of /v1/auth/)
+### 11. Login with legacy path /auth/ instead of /v1/auth/ (should return 200)
 POST https://localhost:8443/auth/login
 Content-Type: application/json
 
@@ -96,7 +112,9 @@ Content-Type: application/json
   "password": "secret123"
 }
 
-### 10. Update password (requires token)
+### ========== UPDATE PASSWORD ==========
+
+### 12. Update password (alice) — requires token (should return 200)
 PUT https://localhost:8443/v1/auth/user/password
 Authorization: Bearer {{alice_token}}
 Content-Type: application/json
@@ -105,7 +123,31 @@ Content-Type: application/json
   "password": "newSecret456"
 }
 
-### 11. Update username (requires token)
+### 13. Login with OLD password (should return 401 — old password invalid)
+POST https://localhost:8443/v1/auth/login
+Content-Type: application/json
+
+{
+  "username": "alice",
+  "password": "secret123"
+}
+
+### 14. Login with NEW password (save new token) (should return 200)
+# @name loginAliceNew
+POST https://localhost:8443/v1/auth/login
+Content-Type: application/json
+
+{
+  "username": "alice",
+  "password": "newSecret456"
+}
+
+### Save Alice's new token
+@alice_token = {{loginAliceNew.response.body.token}}
+
+### ========== UPDATE USERNAME ==========
+
+### 15. Update username (alice -> alice_updated) — requires token (should return 200)
 PUT https://localhost:8443/v1/auth/user/username
 Authorization: Bearer {{alice_token}}
 Content-Type: application/json
@@ -114,20 +156,82 @@ Content-Type: application/json
   "username": "alice_updated"
 }
 
-### 12. Delete user (requires token)
+### 16. Login with OLD username (should return 401 — old username gone)
+POST https://localhost:8443/v1/auth/login
+Content-Type: application/json
+
+{
+  "username": "alice",
+  "password": "newSecret456"
+}
+
+### 17. Login with NEW username (save fresh token) (should return 200)
+# @name loginAliceUpdated
+POST https://localhost:8443/v1/auth/login
+Content-Type: application/json
+
+{
+  "username": "alice_updated",
+  "password": "newSecret456"
+}
+
+### Save Alice's new token after username change
+@alice_token = {{loginAliceUpdated.response.body.token}}
+
+### ========== AUTH-REQUIRED OPERATIONS (ERRORS) ==========
+
+### 18. Update password without token (should return 401)
+PUT https://localhost:8443/v1/auth/user/password
+Content-Type: application/json
+
+{
+  "password": "hacked1234"
+}
+
+### 19. Update username without token (should return 401)
+PUT https://localhost:8443/v1/auth/user/username
+Content-Type: application/json
+
+{
+  "username": "hacker"
+}
+
+### 20. Delete user without token (should return 401)
+DELETE https://localhost:8443/v1/auth/user/delete
+Content-Type: application/json
+
+### 21. Update password with invalid token (should return 401)
+PUT https://localhost:8443/v1/auth/user/password
+Authorization: Bearer invalid.jwt.token
+Content-Type: application/json
+
+{
+  "password": "hacked1234"
+}
+
+### ========== DELETE ==========
+
+### 22. Delete bob — requires token (should return 200)
 DELETE https://localhost:8443/v1/auth/user/delete
 Authorization: Bearer {{bob_token}}
 Content-Type: application/json
 
-### 13. Access without token (should return 401)
-DELETE https://localhost:8443/v1/auth/user/delete
+### 23. Login as deleted user bob (should return 401)
+POST https://localhost:8443/v1/auth/login
 Content-Type: application/json
 
-### 14. Wrong HTTP method (should return 405)
+{
+  "username": "bob",
+  "password": "geheim456"
+}
+
+### ========== MISCELLANEOUS ERRORS ==========
+
+### 24. Wrong HTTP method on register (should return 405)
 GET https://localhost:8443/v1/auth/register
 Content-Type: application/json
 
-### 15. Wrong path (should return 404)
+### 25. Non-existent path (should return 404)
 GET https://localhost:8443/v1/auth/nonexistent
 Content-Type: application/json
 
@@ -136,7 +240,8 @@ Content-Type: application/json
 ### 200 OK - Success
 ### 201 Created - User registered
 ### 400 Bad Request - Missing/invalid fields
-### 401 Unauthorized - Login failed / No token
+### 401 Unauthorized - Login failed / No token / Invalid token
+### 404 Not Found - User not found (delete/update non-existent)
 ### 405 Method Not Allowed - Wrong HTTP method
 ### 409 Conflict - Username already exists
 ### 429 Too Many Requests - Rate limit exceeded
