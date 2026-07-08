@@ -9,6 +9,7 @@ import com.jwt.server.utils.CorsUtils;
 import com.jwt.server.utils.JwtUtils;
 import com.jwt.server.utils.ResponseUtils;
 import com.jwt.server.utils.SqlUtils;
+import com.jwt.server.utils.TokenBlacklist;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
@@ -51,6 +52,7 @@ public class DeleteUserHandler implements HttpHandler {
                 log.warn("Delete failed: {} not found", username);
                 return;
             }
+            TokenBlacklist.invalidate(token);
             String response = "{\"message\": \"User " + username + " was deleted\"}";
             ResponseUtils.send(exchange, 200, response);
             log.info("User deleted: {}", username);

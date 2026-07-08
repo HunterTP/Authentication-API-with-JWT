@@ -60,4 +60,14 @@ class ValidationUtilsTest {
     void emptyPassword() {
         assertNotNull(ValidationUtils.validatePassword(""));
     }
+
+    @Test
+    void whitespacePassword() {
+        assertNotNull(ValidationUtils.validatePassword("   "));
+    }
+
+    @Test
+    void leadingTrailingWhitespacePassword() {
+        assertNotNull(ValidationUtils.validatePassword("  password123  "));
+    }
 }
