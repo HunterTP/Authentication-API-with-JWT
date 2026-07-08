@@ -26,7 +26,7 @@ public final class ValidationUtils {
     }
 
     public static String validatePassword(String password) {
-        if (password == null || password.isEmpty()) {
+        if (password == null || password.trim().isEmpty()) {
             return "Password is required";
         }
         if (password.length() < Config.PASSWORD_MIN_LENGTH) {
@@ -34,6 +34,9 @@ public final class ValidationUtils {
         }
         if (password.length() > Config.PASSWORD_MAX_LENGTH) {
             return "Password must be at most " + Config.PASSWORD_MAX_LENGTH + " characters";
+        }
+        if (password.trim().length() != password.length()) {
+            return "Password must not start or end with whitespace";
         }
         return null;
     }

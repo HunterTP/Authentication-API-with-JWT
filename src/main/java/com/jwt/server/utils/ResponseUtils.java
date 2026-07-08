@@ -25,8 +25,13 @@ public class ResponseUtils {
         }
     }
     
-    // Sends an error response with the given status code and message
     public static void sendError(HttpExchange exchange, int statusCode, String message) throws IOException {
-        send(exchange, statusCode, "{\"error\": \"" + message + "\"}");
+        String escaped = message
+            .replace("\\", "\\\\")
+            .replace("\"", "\\\"")
+            .replace("\n", "\\n")
+            .replace("\r", "\\r")
+            .replace("\t", "\\t");
+        send(exchange, statusCode, "{\"error\":\"" + escaped + "\"}");
     }
 }

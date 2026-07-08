@@ -4,16 +4,22 @@ import java.util.Date;
 
 import javax.crypto.SecretKey;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 
 public class JwtUtils {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtUtils.class);
     private static final SecretKey SECRET_KEY;
+
     static {
         String secret = Config.JWT_SECRET;
 
         if (secret == null || secret.isEmpty()) {
-            System.out.println("JWT_SECRET not set in environment variables. Using default secret key.");
+            log.warn("JWT_SECRET not set! Using hardcoded fallback — set JWT_SECRET env var for production.");
             secret = "mySuperSecretKeyForJWTThatIsAtLeast32Chars";
         }
 
@@ -34,6 +40,9 @@ public class JwtUtils {
     }
 
     public static String extractUsername(String token) {
+        if (TokenBlacklist.isBlacklisted(token)) {
+            throw new RuntimeException("Token has been invalidated");
+        }
         return Jwts.parser()
             .verifyWith(SECRET_KEY)
             .build()

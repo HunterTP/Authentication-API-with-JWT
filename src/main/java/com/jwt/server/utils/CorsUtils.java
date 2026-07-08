@@ -12,7 +12,6 @@ public class CorsUtils {
             "POST, PUT, DELETE");
         exchange.getResponseHeaders().set("Access-Control-Allow-Headers", 
             "Content-Type, Authorization, Accept, X-Requested-With");
-        exchange.getResponseHeaders().set("Access-Control-Allow-Credentials", "true");
         exchange.getResponseHeaders().set("Access-Control-Max-Age", "3600");
     }
     

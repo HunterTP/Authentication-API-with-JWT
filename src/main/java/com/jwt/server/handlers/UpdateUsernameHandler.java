@@ -12,6 +12,7 @@ import com.jwt.server.utils.JwtUtils;
 import com.jwt.server.utils.RequestUtils;
 import com.jwt.server.utils.ResponseUtils;
 import com.jwt.server.utils.SqlUtils;
+import com.jwt.server.utils.TokenBlacklist;
 import com.jwt.server.utils.ValidationUtils;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -75,6 +76,7 @@ public class UpdateUsernameHandler implements HttpHandler {
                 log.warn("Username update failed: {} not found", oldUsername);
                 return;
             }
+            TokenBlacklist.invalidate(token);
             String response = "{\"message\": \"Username updated\"}";
             ResponseUtils.send(exchange, 200, response);
             log.info("Username changed from {} to {}", oldUsername, newUsername);

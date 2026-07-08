@@ -83,7 +83,7 @@ public class SqlUtils {
             if (e.getMessage().contains("Duplicate entry")) {
                 ResponseUtils.sendError(exchange, 409, "Username already exists");
             } else {
-                ResponseUtils.sendError(exchange, 500, "Database error: " + e.getMessage());
+                ResponseUtils.sendError(exchange, 500, "Internal Server Error");
             }
         }
     }

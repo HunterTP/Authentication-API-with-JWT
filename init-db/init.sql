@@ -9,10 +9,5 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Optional: Demo-User (only for Tests!)
-INSERT INTO users (username, password, salt) 
-SELECT * FROM (SELECT 'admin', '$2a$12$...', 'salt') AS tmp
-WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'admin');
-
 -- Index for Performance
 CREATE INDEX idx_username ON users(username);

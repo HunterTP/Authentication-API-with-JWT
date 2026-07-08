@@ -12,6 +12,7 @@ import com.jwt.server.utils.JwtUtils;
 import com.jwt.server.utils.RequestUtils;
 import com.jwt.server.utils.ResponseUtils;
 import com.jwt.server.utils.SqlUtils;
+import com.jwt.server.utils.TokenBlacklist;
 import com.jwt.server.utils.ValidationUtils;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -75,6 +76,7 @@ public class UpdatePasswordHandler implements HttpHandler {
                 log.warn("Password update failed: {} not found", username);
                 return;
             }
+            TokenBlacklist.invalidate(token);
             String response = "{\"message\": \"Password updated\"}";
             ResponseUtils.send(exchange, 200, response);
             log.info("Password updated for {}", username);
