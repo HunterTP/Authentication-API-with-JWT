@@ -57,8 +57,7 @@ public class SqlUtils {
         }
     }
 
-    // Registers a new user
-    public static void registerUser(HttpExchange exchange, String username, String password) throws Exception {
+    public static boolean registerUser(HttpExchange exchange, String username, String password) throws Exception {
         String sql = "INSERT INTO users (username, password, salt) VALUES (?, ?, ?)";
         
         try (Connection conn = getConnection();
@@ -72,12 +71,12 @@ public class SqlUtils {
             int rows = pstmt.executeUpdate();
 
             if (rows == 0) {
-                ResponseUtils.sendError(exchange, 500, "User could not be created");
-                return;
+                return false;
             }
 
             String response = "{\"message\": \"User " + username + " was created\"}";
             ResponseUtils.send(exchange, 201, response);
+            return true;
             
         } catch (Exception e) {
             if (e.getMessage().contains("Duplicate entry")) {
@@ -85,6 +84,7 @@ public class SqlUtils {
             } else {
                 ResponseUtils.sendError(exchange, 500, "Internal Server Error");
             }
+            return false;
         }
     }
 
@@ -103,7 +103,6 @@ public class SqlUtils {
         }
     }
 
-    // Updates a user's username
     public static boolean updateUsername(String oldUsername, String newUsername) throws Exception {
         String sql = "UPDATE users SET username = ? WHERE username = ?";
         
@@ -115,6 +114,9 @@ public class SqlUtils {
             return pstmt.executeUpdate() > 0;
             
         } catch (Exception e) {
+            if (e.getMessage().contains("Duplicate entry")) {
+                throw new Exception("duplicate username");
+            }
             throw new Exception("Database error: " + e.getMessage());
         }
     }

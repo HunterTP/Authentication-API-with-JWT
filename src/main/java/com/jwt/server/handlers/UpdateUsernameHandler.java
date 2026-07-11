@@ -81,6 +81,10 @@ public class UpdateUsernameHandler implements HttpHandler {
             ResponseUtils.send(exchange, 200, response);
             log.info("Username changed from {} to {}", oldUsername, newUsername);
         } catch (Exception e) {
+            if (e.getMessage().contains("duplicate username")) {
+                ResponseUtils.sendError(exchange, 409, "Username already exists");
+                return;
+            }
             log.error("Username update failed: {}", e.getMessage());
             ResponseUtils.sendError(exchange, 500, "Internal Server Error");
         }

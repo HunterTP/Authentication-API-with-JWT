@@ -9,7 +9,7 @@ public class CorsUtils {
     public static void addCorsHeaders(HttpExchange exchange) {
         exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
         exchange.getResponseHeaders().set("Access-Control-Allow-Methods", 
-            "POST, PUT, DELETE");
+            "GET, POST, PUT, DELETE");
         exchange.getResponseHeaders().set("Access-Control-Allow-Headers", 
             "Content-Type, Authorization, Accept, X-Requested-With");
         exchange.getResponseHeaders().set("Access-Control-Max-Age", "3600");

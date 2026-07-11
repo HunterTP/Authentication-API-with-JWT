@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import com.jwt.server.utils.CorsUtils;
 import com.jwt.server.utils.JsonUtils;
+import com.jwt.server.utils.RateLimiter;
 import com.jwt.server.utils.RequestUtils;
 import com.jwt.server.utils.ResponseUtils;
 import com.jwt.server.utils.SqlUtils;
@@ -18,6 +19,7 @@ import com.sun.net.httpserver.HttpHandler;
 public class RegisterHandler implements HttpHandler {
 
     private static final Logger log = LoggerFactory.getLogger(RegisterHandler.class);
+    private static final RateLimiter rateLimiter = new RateLimiter();
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
@@ -33,6 +35,16 @@ public class RegisterHandler implements HttpHandler {
 
         if (!RequestUtils.isJsonContentType(exchange)) {
             ResponseUtils.sendError(exchange, 415, "Content-Type must be application/json");
+            return;
+        }
+
+        String clientIp = exchange.getRemoteAddress() != null
+            ? exchange.getRemoteAddress().getAddress().getHostAddress()
+            : "unknown";
+
+        if (!rateLimiter.isAllowed(clientIp)) {
+            log.warn("Rate limit exceeded for IP: {} on register", clientIp);
+            ResponseUtils.sendError(exchange, 429, "Too many requests. Please try again later.");
             return;
         }
 
@@ -57,12 +69,8 @@ public class RegisterHandler implements HttpHandler {
             return;
         }
 
-        try {
-            SqlUtils.registerUser(exchange, username, password);
+        if (SqlUtils.registerUser(exchange, username, password)) {
             log.info("User registered: {}", username);
-        } catch (Exception e) {
-            log.error("Registration failed for {}: {}", username, e.getMessage());
-            ResponseUtils.sendError(exchange, 500, "Error occurred while registering the user");
         }
     }
 }

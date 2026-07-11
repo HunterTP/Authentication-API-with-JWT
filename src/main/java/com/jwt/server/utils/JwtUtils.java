@@ -4,23 +4,20 @@ import java.util.Date;
 
 import javax.crypto.SecretKey;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 
 public class JwtUtils {
 
-    private static final Logger log = LoggerFactory.getLogger(JwtUtils.class);
     private static final SecretKey SECRET_KEY;
 
     static {
         String secret = Config.JWT_SECRET;
 
         if (secret == null || secret.isEmpty()) {
-            log.warn("JWT_SECRET not set! Using hardcoded fallback — set JWT_SECRET env var for production.");
-            secret = "mySuperSecretKeyForJWTThatIsAtLeast32Chars";
+            throw new IllegalStateException(
+                "JWT_SECRET environment variable is not set! " +
+                "Set a random secret with at least 32 characters.");
         }
 
         if (secret.length() < 32) {
