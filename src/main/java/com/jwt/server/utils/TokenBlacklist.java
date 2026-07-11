@@ -22,20 +22,22 @@ public class TokenBlacklist {
     }
 
     public static void invalidate(String token) {
+        String hash = sha256(token);
         long expiry = System.currentTimeMillis() + TOKEN_TTL_MS;
-        cache.put(token, expiry);
+        cache.put(hash, expiry);
         try {
-            SqlUtils.persistBlacklistedToken(token, expiry);
+            SqlUtils.persistBlacklistedToken(hash, expiry);
         } catch (Exception e) {
             // non-critical
         }
     }
 
     public static boolean isBlacklisted(String token) {
-        Long expiry = cache.get(token);
+        String hash = sha256(token);
+        Long expiry = cache.get(hash);
         if (expiry == null) return false;
         if (System.currentTimeMillis() > expiry) {
-            cache.remove(token);
+            cache.remove(hash);
             return false;
         }
         return true;
@@ -49,5 +51,15 @@ public class TokenBlacklist {
         }
         long now = System.currentTimeMillis();
         cache.entrySet().removeIf(e -> e.getValue() < now);
+    }
+
+    private static String sha256(String input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(input.getBytes());
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 not available", e);
+        }
     }
 }
