@@ -5,6 +5,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Map;
 
 import com.sun.net.httpserver.HttpExchange;
 
@@ -57,7 +58,7 @@ public class SqlUtils {
         }
     }
 
-    public static boolean registerUser(HttpExchange exchange, String username, String password) throws Exception {
+    public static boolean registerUser(HttpExchange exchange, String username, String password) {
         String sql = "INSERT INTO users (username, password, salt) VALUES (?, ?, ?)";
         
         try (Connection conn = getConnection();
