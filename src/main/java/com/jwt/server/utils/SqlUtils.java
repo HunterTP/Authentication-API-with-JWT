@@ -1,5 +1,6 @@
 package com.jwt.server.utils;
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -80,10 +81,14 @@ public class SqlUtils {
             return true;
             
         } catch (Exception e) {
-            if (e.getMessage().contains("Duplicate entry")) {
-                ResponseUtils.sendError(exchange, 409, "Username already exists");
-            } else {
-                ResponseUtils.sendError(exchange, 500, "Internal Server Error");
+            try {
+                if (e.getMessage().contains("Duplicate entry")) {
+                    ResponseUtils.sendError(exchange, 409, "Username already exists");
+                } else {
+                    ResponseUtils.sendError(exchange, 500, "Internal Server Error");
+                }
+            } catch (IOException ioEx) {
+                // Response can't be sent — nothing more to do
             }
             return false;
         }
