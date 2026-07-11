@@ -9,5 +9,11 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Index for Performance
 CREATE INDEX idx_username ON users(username);
+
+CREATE TABLE IF NOT EXISTS token_blacklist (
+    token_hash VARCHAR(64) PRIMARY KEY,
+    expires_at BIGINT NOT NULL
+);
+
+CREATE INDEX idx_token_expires_at ON token_blacklist(expires_at);

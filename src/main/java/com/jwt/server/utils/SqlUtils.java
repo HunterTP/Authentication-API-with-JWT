@@ -177,5 +177,49 @@ public class SqlUtils {
             System.err.println("Database error: " + e.getMessage());
             return null;
         }
-    } 
+    }
+
+    public static Map<String, Long> loadBlacklistedTokens() {
+        Map<String, Long> result = new java.util.HashMap<>();
+        String sql = "SELECT token_hash, expires_at FROM token_blacklist WHERE expires_at > ?";
+        long now = System.currentTimeMillis();
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setLong(1, now);
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                result.put(rs.getString("token_hash"), rs.getLong("expires_at"));
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to load blacklisted tokens: " + e.getMessage());
+        }
+        return result;
+    }
+
+    public static void persistBlacklistedToken(String token, long expiresAt) {
+        String sql = "INSERT INTO token_blacklist (token_hash, expires_at) VALUES (?, ?) ON DUPLICATE KEY UPDATE expires_at = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, token);
+            pstmt.setLong(2, expiresAt);
+            pstmt.setLong(3, expiresAt);
+            pstmt.executeUpdate();
+        } catch (Exception e) {
+            System.err.println("Failed to persist blacklisted token: " + e.getMessage());
+        }
+    }
+
+    public static void removeExpiredBlacklistedTokens() {
+        String sql = "DELETE FROM token_blacklist WHERE expires_at <= ?";
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setLong(1, System.currentTimeMillis());
+            int removed = pstmt.executeUpdate();
+            if (removed > 0) {
+                System.out.println("Cleaned up " + removed + " expired blacklisted tokens");
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to cleanup expired tokens: " + e.getMessage());
+        }
+    }
 }

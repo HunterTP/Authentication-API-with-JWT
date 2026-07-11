@@ -4,6 +4,16 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class AccountLocker {
 
+    private static final AccountLocker GLOBAL = new AccountLocker();
+
+    public static AccountLocker global() {
+        return GLOBAL;
+    }
+
+    public static void cleanupAll() {
+        GLOBAL.cleanup();
+    }
+
     private final ConcurrentHashMap<String, LockState> locks = new ConcurrentHashMap<>();
     private final int maxAttempts;
     private final long lockDurationMs;
@@ -42,6 +52,14 @@ public class AccountLocker {
 
     public void reset(String username) {
         locks.remove(username);
+    }
+
+    public void cleanup() {
+        long now = System.currentTimeMillis();
+        locks.entrySet().removeIf(entry -> {
+            LockState state = entry.getValue();
+            return state.lockedUntil() == 0 || now >= state.lockedUntil();
+        });
     }
 
     private record LockState(int attempts, long lockedUntil) {}

@@ -19,7 +19,7 @@ import com.sun.net.httpserver.HttpHandler;
 public class RegisterHandler implements HttpHandler {
 
     private static final Logger log = LoggerFactory.getLogger(RegisterHandler.class);
-    private static final RateLimiter rateLimiter = new RateLimiter();
+    private static final RateLimiter rateLimiter = RateLimiter.global();
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {

@@ -1,10 +1,15 @@
 package com.jwt.server;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.jwt.server.utils.HttpsUtils;
 import com.jwt.server.utils.SqlUtils;
+import com.jwt.server.utils.TokenBlacklist;
 import com.sun.net.httpserver.HttpsServer;
 
 public class Main {
@@ -29,6 +34,28 @@ public class Main {
             log.error("Database connection failed. Exiting.");
             return;
         }
+
+        TokenBlacklist.init();
+
+        ScheduledExecutorService cleaner = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "cleanup");
+            t.setDaemon(true);
+            return t;
+        });
+        cleaner.scheduleAtFixedRate(() -> {
+            try {
+                TokenBlacklist.cleanup();
+                com.jwt.server.utils.RateLimiter.cleanupAll();
+                com.jwt.server.utils.AccountLocker.cleanupAll();
+            } catch (Exception e) {
+                log.warn("Cleanup task failed: {}", e.getMessage());
+            }
+        }, 15, 15, TimeUnit.MINUTES);
+        log.info("Cleanup scheduled every 15 minutes");
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            cleaner.shutdown();
+        }));
 
         try {
             server = HttpsUtils.createHttpsServer();

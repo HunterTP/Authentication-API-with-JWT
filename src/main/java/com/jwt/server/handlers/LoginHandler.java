@@ -21,8 +21,8 @@ import com.sun.net.httpserver.HttpHandler;
 public class LoginHandler implements HttpHandler {
 
     private static final Logger log = LoggerFactory.getLogger(LoginHandler.class);
-    private static final RateLimiter rateLimiter = new RateLimiter();
-    private static final AccountLocker accountLocker = new AccountLocker();
+    private static final RateLimiter rateLimiter = RateLimiter.global();
+    private static final AccountLocker accountLocker = AccountLocker.global();
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {

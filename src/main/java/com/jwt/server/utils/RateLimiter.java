@@ -5,6 +5,16 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 
 public class RateLimiter {
 
+    private static final RateLimiter GLOBAL = new RateLimiter();
+
+    public static RateLimiter global() {
+        return GLOBAL;
+    }
+
+    public static void cleanupAll() {
+        GLOBAL.cleanup();
+    }
+
     private final ConcurrentHashMap<String, ConcurrentLinkedDeque<Long>> requests = new ConcurrentHashMap<>();
     private final int maxRequests;
     private final long windowMs;
@@ -36,5 +46,18 @@ public class RateLimiter {
 
     public void reset(String key) {
         requests.remove(key);
+    }
+
+    public void cleanup() {
+        long now = System.currentTimeMillis();
+        requests.entrySet().removeIf(entry -> {
+            ConcurrentLinkedDeque<Long> timestamps = entry.getValue();
+            synchronized (timestamps) {
+                while (!timestamps.isEmpty() && now - timestamps.peekFirst() > windowMs) {
+                    timestamps.pollFirst();
+                }
+                return timestamps.isEmpty();
+            }
+        });
     }
 }
