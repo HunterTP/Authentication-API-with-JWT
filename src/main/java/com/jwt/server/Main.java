@@ -19,6 +19,10 @@ public class Main {
                 server.stop(2);
             }
             log.info("Server stopped");
+
+            if (org.slf4j.LoggerFactory.getILoggerFactory() instanceof ch.qos.logback.classic.LoggerContext context) {
+                context.stop();
+            }
         }));
 
         if (!SqlUtils.testConnection()) {
