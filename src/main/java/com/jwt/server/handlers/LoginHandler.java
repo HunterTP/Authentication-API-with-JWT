@@ -80,10 +80,15 @@ public class LoginHandler implements HttpHandler {
 
         if (SqlUtils.checkUserCredentials(username, password)) {
             accountLocker.reset(username);
-            String token = JwtUtils.generateToken(username);
-            String response = "{\"token\":\"" + token + "\", \"message\":\"Login successful\"}";
-            ResponseUtils.send(exchange, 200, response);
-            log.info("Login successful: {}", username);
+            try {
+                String token = JwtUtils.generateToken(username);
+                String response = "{\"token\":\"" + token + "\", \"message\":\"Login successful\"}";
+                ResponseUtils.send(exchange, 200, response);
+                log.info("Login successful: {}", username);
+            } catch (Exception e) {
+                log.error("Token generation failed: {}", e.getMessage());
+                ResponseUtils.sendError(exchange, 500, "Internal Server Error");
+            }
         } else {
             accountLocker.recordFailedAttempt(username);
             log.warn("Login failed for {}", username);

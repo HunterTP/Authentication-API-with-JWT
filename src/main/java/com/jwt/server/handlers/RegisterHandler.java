@@ -69,8 +69,21 @@ public class RegisterHandler implements HttpHandler {
             return;
         }
 
-        if (SqlUtils.registerUser(exchange, username, password)) {
-            log.info("User registered: {}", username);
+        try {
+            if (SqlUtils.registerUser(username, password)) {
+                String response = "{\"message\": \"User " + username + " was created\"}";
+                ResponseUtils.send(exchange, 201, response);
+                log.info("User registered: {}", username);
+            } else {
+                ResponseUtils.sendError(exchange, 500, "Internal Server Error");
+            }
+        } catch (Exception e) {
+            if (e.getMessage().contains("Duplicate entry")) {
+                ResponseUtils.sendError(exchange, 409, "Username already exists");
+            } else {
+                log.error("Registration failed: {}", e.getMessage());
+                ResponseUtils.sendError(exchange, 500, "Internal Server Error");
+            }
         }
     }
 }

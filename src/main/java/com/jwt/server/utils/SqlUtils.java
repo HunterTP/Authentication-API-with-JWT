@@ -1,14 +1,11 @@
 package com.jwt.server.utils;
 
-import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Map;
-
-import com.sun.net.httpserver.HttpExchange;
 
 public class SqlUtils {
     // Database connection parameters
@@ -59,7 +56,7 @@ public class SqlUtils {
         }
     }
 
-    public static boolean registerUser(HttpExchange exchange, String username, String password) {
+    public static boolean registerUser(String username, String password) throws Exception {
         String sql = "INSERT INTO users (username, password, salt) VALUES (?, ?, ?)";
         
         try (Connection conn = getConnection();
@@ -70,27 +67,10 @@ public class SqlUtils {
             pstmt.setString(1, username);
             pstmt.setString(2, hash[1]);
             pstmt.setString(3, hash[0]);
-            int rows = pstmt.executeUpdate();
-
-            if (rows == 0) {
-                return false;
-            }
-
-            String response = "{\"message\": \"User " + username + " was created\"}";
-            ResponseUtils.send(exchange, 201, response);
-            return true;
+            return pstmt.executeUpdate() > 0;
             
         } catch (Exception e) {
-            try {
-                if (e.getMessage().contains("Duplicate entry")) {
-                    ResponseUtils.sendError(exchange, 409, "Username already exists");
-                } else {
-                    ResponseUtils.sendError(exchange, 500, "Internal Server Error");
-                }
-            } catch (IOException ioEx) {
-                // Response can't be sent — nothing more to do
-            }
-            return false;
+            throw new Exception(e.getMessage());
         }
     }
 

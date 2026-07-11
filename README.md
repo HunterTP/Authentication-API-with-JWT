@@ -23,7 +23,11 @@ A secure, production-ready Java REST API for user authentication using JWT token
 - JSON-injection safe error responses
 - Complete Docker support for easy deployment
 - Health check endpoint for monitoring
+- Thread pool executor for concurrent request handling
+- Token blacklist persisted in database (survives restarts)
 - CI/CD pipeline with unit tests, integration tests, OWASP dependency check, and SpotBugs
+- VS Code launch config with automatic `.env` loading
+- 25-step sequential test suite (`requests.http`) importable by REST Clients
 
 ## Quick Start
 
@@ -58,11 +62,19 @@ cd Authentication-API-with-JWT
 mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS authdb;"
 mysql -u root -p authdb < init-db/init.sql
 
-# 3. Build and run (first run downloads dependencies)
+# 3. Configure environment
+cp .env.example .env
+# Edit .env with your settings (JWT_SECRET must be at least 32 chars)
+
+# 4. Open in VS Code — launch config reads .env automatically
+code .
+# Run → "Run Authentication Server" (or F5)
+
+# Or via Maven (first run downloads ~30 MB of dependencies)
 mvn compile exec:java
 ```
 
-First build takes longer (downloads ~30 MB of dependencies). Subsequent runs are instant.
+> **Note**: `JWT_SECRET` is **required**. The server fails fast at first login attempt if it's not set. The VS Code launch config and `mvn exec:java` both load it automatically from the environment.
 
 ## Configuration
 
@@ -73,7 +85,7 @@ All configuration is via environment variables:
 | `DB_URL` | MySQL JDBC URL | `jdbc:mysql://localhost:3306/authdb` |
 | `DB_USER` | Database username | `root` |
 | `DB_PASSWORD` | Database password | `root` |
-| `JWT_SECRET` | JWT signing key (min 32 chars) | Hardcoded fallback (⚠️ set in production!) |
+| `JWT_SECRET` | JWT signing key (min 32 chars) | **Required** — fails fast if missing |
 | `JWT_EXPIRATION_MS` | Token TTL in milliseconds | `3600000` (1 hour) |
 | `BCRYPT_PEPPER` | Pepper prepended to passwords | `null` (no pepper) |
 | `BCRYPT_WORKLOAD` | BCrypt cost factor | `12` |
@@ -274,7 +286,7 @@ Checkout → mvn test → OWASP DepCheck → SpotBugs → Buildx → docker buil
 
 | Step | Purpose |
 |------|---------|
-| `mvn test` | 29 unit tests (utilities: config, JSON, rate limiter, validation) |
+| `mvn test` | 28 unit tests (utilities: config, JSON, rate limiter, validation) |
 | **OWASP Dependency Check** | Vulnerability scan of all dependencies (CVSS ≥ 7 fails build, non-blocking) |
 | **SpotBugs** | Static analysis for bug patterns (Medium threshold, non-blocking) |
 | **Integration tests** | Full register → login → delete cycle against running containers |
@@ -317,6 +329,10 @@ Authentication-API-with-JWT/
 ├── init-db/
 │   ├── init.sh              # Creates appuser with mysql_native_password
 │   └── init.sql             # Creates users table + index
+├── .env.example             # Environment variable template
+├── .env                     # Local environment (git-ignored)
+├── .vscode/
+│   └── launch.json          # VS Code launch config (loads .env)
 ├── requests.http            # 25-step sequential test suite (VS Code / IntelliJ)
 ├── pom.xml
 ├── Dockerfile

@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
+import java.util.concurrent.Executors;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -111,6 +112,7 @@ public class HttpsUtils {
                 }
             }
 
+            server.setExecutor(Executors.newCachedThreadPool());
             server.start();
             log.info("HTTPS server listening on port {}", Config.PORT);
 
