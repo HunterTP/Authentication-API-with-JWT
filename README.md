@@ -2,8 +2,6 @@
 
 A secure, production-ready Java REST API for user authentication using JWT tokens and BCrypt password hashing with MySQL database.
 
-> Enables secure authentication for other APIs using a shared secret key.
-
 [![Java](https://img.shields.io/badge/Java-17+-blue.svg)](https://www.oracle.com/java/technologies/downloads/)
 [![MySQL](https://img.shields.io/badge/MySQL-8.0+-blue.svg)](https://www.mysql.com/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
@@ -11,13 +9,21 @@ A secure, production-ready Java REST API for user authentication using JWT token
 
 ## Features
 
-- JWT-based authentication with customizable expiration
+- JWT-based authentication (HS256) with customizable expiration
 - BCrypt password hashing with pepper for additional security
-- HTTPS support with custom SSL certificates
+- HTTPS support with auto-generated self-signed SSL certificates
 - MySQL database for persistent user storage
-- RESTful API endpoints
+- RESTful API endpoints with dual path support (`/auth/*` and `/v1/auth/*`)
+- Rate limiting: 20 requests per 60 seconds per IP (sliding window)
+- Account jailing: 5 failed logins → 15-minute lockout per user
+- Token blacklist: invalidates tokens on password/username change or account deletion
+- Security headers: HSTS, CSP, X-Content-Type-Options, X-Frame-Options
+- Content-Type validation: rejects non-JSON request bodies with 415
+- Input validation: username regex, password length + whitespace checks
+- JSON-injection safe error responses
 - Complete Docker support for easy deployment
 - Health check endpoint for monitoring
+- CI/CD pipeline with unit tests, integration tests, OWASP dependency check, and SpotBugs
 
 ## Quick Start
 
@@ -50,39 +56,35 @@ cd Authentication-API-with-JWT
 
 # 2. Create MySQL database
 mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS authdb;"
+mysql -u root -p authdb < init-db/init.sql
 
-# 3. Configure environment variables
-export DB_URL="jdbc:mysql://localhost:3306/authdb?useSSL=false&serverTimezone=UTC"
-export DB_USER="your_db_user"
-export DB_PASSWORD="your_db_password"
-export JWT_SECRET="your_secret_key_at_least_32_chars"
-export BCRYPT_PEPPER="your_pepper_string"
-export KEYSTORE_PASS="your_keystore_password"
-export KEY_PASS="your_key_password"
-
-# 4. Build and run
-mvn clean compile exec:java
+# 3. Build and run (first run downloads dependencies)
+mvn compile exec:java
 ```
+
+First build takes longer (downloads ~30 MB of dependencies). Subsequent runs are instant.
 
 ## Configuration
 
-All configuration is done via environment variables:
+All configuration is via environment variables:
 
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `DB_URL` | MySQL JDBC connection URL | Yes | - |
-| `DB_USER` | Database username | Yes | - |
-| `DB_PASSWORD` | Database password | Yes | - |
-| `JWT_SECRET` | Secret key for JWT signing (min 32 chars) | Yes | - |
-| `JWT_EXPIRATION_MS` | Token expiration in milliseconds | No | 3600000 (1 hour) |
-| `BCRYPT_PEPPER` | Additional pepper for password hashing | Yes | - |
-| `BCRYPT_WORKLOAD` | BCrypt workload factor | No | 12 |
-| `KEYSTORE_PASS` | SSL keystore password | Yes | - |
-| `KEY_PASS` | SSL key password | Yes | - |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DB_URL` | MySQL JDBC URL | `jdbc:mysql://localhost:3306/authdb` |
+| `DB_USER` | Database username | `root` |
+| `DB_PASSWORD` | Database password | `root` |
+| `JWT_SECRET` | JWT signing key (min 32 chars) | Hardcoded fallback (⚠️ set in production!) |
+| `JWT_EXPIRATION_MS` | Token TTL in milliseconds | `3600000` (1 hour) |
+| `BCRYPT_PEPPER` | Pepper prepended to passwords | `null` (no pepper) |
+| `BCRYPT_WORKLOAD` | BCrypt cost factor | `12` |
+| `KEYSTORE_PASS` | Keystore password | `123456` |
+| `KEY_PASS` | Key password | `123456` |
+| `KEYSTORE_PATH` | Custom keystore path | Built-in `keystore.jks` |
+| `API_PORT` | HTTPS server port | `8443` |
 
 ## API Endpoints
 
-Both legacy (`/auth/...`) and versioned (`/v1/auth/...`) paths are supported.
+Dual path support: both legacy (`/auth/...`) and versioned (`/v1/auth/...`) paths work identically.
 
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
@@ -93,13 +95,11 @@ Both legacy (`/auth/...`) and versioned (`/v1/auth/...`) paths are supported.
 | PUT | `/v1/auth/user/username` | Update username | Yes |
 | GET | `/v1/api/health` | Health check | No |
 
-> Legacy paths (`/auth/register`, `/auth/login`, etc.) also work for backward compatibility.
+All mutation endpoints (`register`, `login`, `password`, `username`) require `Content-Type: application/json`. Requests with missing or wrong Content-Type receive `415 Unsupported Media Type`.
 
 ### Example Usage
 
-All examples use the versioned path (`/v1/`). Legacy paths work identically.
-
-#### Register a new user:
+#### Register:
 ```bash
 curl -k -X POST https://localhost:8443/v1/auth/register \
   -H "Content-Type: application/json" \
@@ -127,6 +127,8 @@ curl -k -X DELETE https://localhost:8443/v1/auth/user/delete \
   -H "Authorization: Bearer <your_token>"
 ```
 
+The full sequential 25-request test suite is in [`requests.http`](requests.http) (importable by VS Code REST Client or IntelliJ HTTP Client).
+
 ## Docker Architecture
 
 ### Services
@@ -140,17 +142,15 @@ curl -k -X DELETE https://localhost:8443/v1/auth/user/delete \
 
 On first start (empty volume), the MySQL container runs the official entrypoint which:
 
-1. **`mysqld --initialize-insecure`** — creates the data directory with root having an **empty password**
+1. **`mysqld --initialize-insecure`** — creates the data directory with root having an empty password
 2. **Temporary server** starts with `--skip-networking` (socket only)
 3. **`docker_setup_db()`** — entrypoint connects via socket, sets root's password via `ALTER USER`, creates the database and default appuser
 4. **Init scripts run** — files from `./init-db/` are executed in order:
    - **`init.sh`** drops the entrypoint-created appuser (which uses `caching_sha2_password`) and recreates it with `IDENTIFIED WITH mysql_native_password` — required for Java JDBC compatibility over Docker bridge
    - **`init.sql`** creates the `users` table and index
-5. **MySQL restarts** normally — now root has a password and appuser uses `mysql_native_password`
+5. **MySQL restarts** normally — root now has a password and appuser uses `mysql_native_password`
 
 ### Healthchecks
-
-Both containers have healthchecks so Docker Compose can manage startup order:
 
 ```yaml
 mysql-db:
@@ -169,37 +169,6 @@ java-api:
     interval: 5s
     start_period: 20s
     retries: 10
-```
-
-### Environment Variables
-
-Copy `.env.example` to `.env` and configure:
-
-```env
-# Database
-DB_ROOT_PASSWORD=rootpass
-DB_NAME=authdb
-DB_USER=appuser
-DB_PASSWORD=appuserpass
-DB_PORT=3306
-
-# JWT
-JWT_SECRET=mySuperSecureJWTSecretThatIsAtLeast32CharactersLong
-JWT_EXPIRATION_MS=3600000
-
-# BCrypt
-BCRYPT_PEPPER=mySECRETPepperThatIsNotStoredInTheDB
-BCRYPT_WORKLOAD=15
-
-# SSL
-KEYSTORE_PASS=123456
-KEY_PASS=123456
-
-# Optional: custom keystore path
-# KEYSTORE_PATH=./custom-keystore.jks
-
-# Server
-API_PORT=8443
 ```
 
 ### Commands
@@ -221,15 +190,9 @@ docker exec -it authenticationapi-mysql mysql -u root -p
 docker compose build --no-cache java-api
 ```
 
-### Why mysql_native_password?
-
-MySQL 8.0 defaults to `caching_sha2_password`, but the Java JDBC driver (`mysql-connector-java`) struggles with this plugin over Docker's bridge network. The error "Host not allowed" is misleading — the real issue is the auth handshake failing. The fix is `init.sh` which recreates the appuser with `IDENTIFIED WITH mysql_native_password`.
-
 ## SSL Certificate
 
 The Docker build generates a **self-signed** keystore automatically. For production, use a real certificate:
-
-### Using Let's Encrypt (free)
 
 ```bash
 # 1. Get certificate (e.g. with certbot)
@@ -249,56 +212,72 @@ keytool -importkeystore \
   -destkeystore keystore.jks -deststoretype JKS -deststorepass your_keystore_password
 ```
 
-### Use it with Docker
+Set `KEYSTORE_PATH` in your environment or `docker-compose.yml` to use a custom keystore.
 
-```yaml
-# docker-compose.yml — mount your keystore and set env vars:
-services:
-  java-api:
-    volumes:
-      - ./keystore.jks:/app/custom-keystore.jks
-    environment:
-      KEYSTORE_PATH: /app/custom-keystore.jks
-      KEYSTORE_PASS: your_keystore_password
-      KEY_PASS: your_key_password
-```
+## Security
 
-The `KEYSTORE_PATH` env var is supported — if not set, it falls back to the built-in self-signed `keystore.jks`.
+### Security Headers
 
-### Self-signed vs. real certificate
+Every response includes:
 
-| | Self-signed (default) | Real certificate |
-|---|---|---|
-| Browser | &#x26A0; Security warning | &#x2705; Trusted |
-| Setup | Automatic in Docker build | Manual (Let's Encrypt, CA, etc.) |
-| Use case | Development / testing | Production |
+| Header | Value |
+|--------|-------|
+| `Strict-Transport-Security` | `max-age=63072000; includeSubDomains` |
+| `Content-Security-Policy` | `default-src 'none'` |
+| `X-Content-Type-Options` | `nosniff` |
+| `X-Frame-Options` | `DENY` |
+
+### Rate Limiting
+
+Per-IP sliding window: up to **20 requests per 60 seconds**. Exceeding returns `429 Too Many Requests`.
+
+### Account Jailing
+
+After **5 failed login attempts** for the same username, the account is locked for **15 minutes**. Further attempts return `429 Account is temporarily locked`. Successful login resets the counter.
+
+### Token Blacklist
+
+When a user changes their password or username (or deletes their account), the current JWT is immediately invalidated. The client must re-authenticate to get a new token.
+
+### Input Validation
+
+| Field | Rules |
+|-------|-------|
+| Username | 3-30 chars, `[a-zA-Z0-9_-]` only |
+| Password | 8-128 chars, no leading/trailing whitespace |
+
+### Error Handling
+
+- No SQL error messages leak to the client (generic `500 Internal Server Error`)
+- All error messages are JSON-escaped to prevent injection
+- Invalid methods return `405 Method Not Allowed`
+- Wrong Content-Type returns `415 Unsupported Media Type`
+- Missing/invalid tokens return `401 Unauthorized`
 
 ## CI/CD Pipeline
 
 Every push to `main` triggers [GitHub Actions](.github/workflows/docker.yml):
 
 ```
-Checkout → cp .env → Buildx → docker build → docker compose up -d
-                                              ↓
-                                         Wait MySQL (60s)
-                                              ↓
-                                         Grant permissions (retry 10x)
-                                              ↓
-                                         Wait API (120s)
-                                              ↓
-                                         Check / Stop (down -v)
+Checkout → mvn test → OWASP DepCheck → SpotBugs → Buildx → docker build → docker compose up -d
+                                                                                ↓
+                                                                          Wait MySQL (60s)
+                                                                                ↓
+                                                                          Grant permissions (retry 10x)
+                                                                                ↓
+                                                                          Wait API (120s)
+                                                                                ↓
+                                                                          Integration tests
+                                                                                ↓
+                                                                          Stop (down -v)
 ```
 
-| Step | What it does |
-|------|-------------|
-| **Wait for MySQL** | Polls `docker inspect` for health status (up to 60s). Exit 1 if MySQL never becomes healthy. |
-| **Grant permissions** | Runs `docker exec` to ensure appuser exists with `mysql_native_password`. Retries 10 times with 2s intervals. This is a safety net for volume-reuse scenarios. |
-| **Wait for API** | Polls container health status (up to 120s). |
-| **Stop containers** | `docker compose down -v` removes the MySQL volume, ensuring every CI run starts fresh. |
-
-### Known Pitfall: MYSQL_PWD
-
-Never set `MYSQL_PWD` in `docker-compose.yml`. The MySQL entrypoint's `docker_setup_db()` calls `mysql -u root` (without `-p`), intending to send an empty password (root starts with empty password from `--initialize-insecure`). If `MYSQL_PWD` is set, `libmysqlclient` reads it and sends that value instead → "Access denied" → ALTER USER fails → root stays empty → downstream problems.
+| Step | Purpose |
+|------|---------|
+| `mvn test` | 29 unit tests (utilities: config, JSON, rate limiter, validation) |
+| **OWASP Dependency Check** | Vulnerability scan of all dependencies (CVSS ≥ 7 fails build, non-blocking) |
+| **SpotBugs** | Static analysis for bug patterns (Medium threshold, non-blocking) |
+| **Integration tests** | Full register → login → delete cycle against running containers |
 
 ## Project Structure
 
@@ -306,25 +285,28 @@ Never set `MYSQL_PWD` in `docker-compose.yml`. The MySQL entrypoint's `docker_se
 Authentication-API-with-JWT/
 ├── src/
 │   ├── main/java/com/jwt/server/
-│   │   ├── Main.java              # Application entry point
-│   │   ├── handlers/              # HTTP request handlers
+│   │   ├── Main.java                  # Entry point
+│   │   ├── handlers/                  # HTTP request handlers
 │   │   │   ├── RegisterHandler.java
 │   │   │   ├── LoginHandler.java
 │   │   │   ├── DeleteUserHandler.java
 │   │   │   ├── UpdatePasswordHandler.java
 │   │   │   ├── UpdateUsernameHandler.java
 │   │   │   └── HealthHandler.java
-│   │   └── utils/                 # Utility classes
-│   │       ├── Config.java
-│   │       ├── CorsUtils.java
-│   │       ├── HttpsUtils.java
-│   │       ├── JbcryptUtils.java
-│   │       ├── JsonUtils.java
-│   │       ├── JwtUtils.java
-│   │       ├── RateLimiter.java
-│   │       ├── ResponseUtils.java
-│   │       ├── SqlUtils.java
-│   │       └── ValidationUtils.java
+│   │   └── utils/                     # Utilities
+│   │       ├── AccountLocker.java     # Per-account brute-force protection
+│   │       ├── Config.java            # Environment config
+│   │       ├── CorsUtils.java         # CORS headers
+│   │       ├── HttpsUtils.java        # SSL server setup
+│   │       ├── JbcryptUtils.java      # BCrypt + pepper hashing
+│   │       ├── JsonUtils.java         # Simple JSON parser
+│   │       ├── JwtUtils.java          # JWT generation + validation
+│   │       ├── RateLimiter.java       # Per-IP sliding window rate limiter
+│   │       ├── RequestUtils.java      # Content-Type validation
+│   │       ├── ResponseUtils.java     # JSON responses + security headers
+│   │       ├── SqlUtils.java          # Database operations
+│   │       ├── TokenBlacklist.java    # Post-mutation token invalidation
+│   │       └── ValidationUtils.java   # Username/password validation
 │   ├── main/resources/
 │   │   └── logback.xml
 │   └── test/java/com/jwt/server/utils/
@@ -335,38 +317,28 @@ Authentication-API-with-JWT/
 ├── init-db/
 │   ├── init.sh              # Creates appuser with mysql_native_password
 │   └── init.sql             # Creates users table + index
-├── target/                 # Build output (generated)
-├── pom.xml                # Maven configuration
-├── Dockerfile            # Container definition
-├── docker-compose.yml     # Docker Compose configuration
-├── .env.example          # Environment template
-├── .github/
-│   └── workflows/
-│       └── docker.yml    # GitHub Actions CI pipeline
+├── requests.http            # 25-step sequential test suite (VS Code / IntelliJ)
+├── pom.xml
+├── Dockerfile
+├── docker-compose.yml
+├── .env.example
+├── .github/workflows/
+│   └── docker.yml           # GitHub Actions CI
 └── README.md
 ```
 
-## Security Notes
-
-- **Always change default passwords in production**
-- Use a strong `JWT_SECRET` (minimum 32 characters recommended)
-- Keep `BCRYPT_PEPPER` secret - never store it in the database
-- Replace the default `keystore.jks` with a valid SSL certificate in production
-- The BCrypt workload factor (12) provides good security without significant performance impact
-
 ## Tech Stack
 
-- **Java 17** - Programming language
-- **Maven** - Build tool
-- **MySQL 8.0** - Database
-- **jjwt** - JWT library
-- **jBCrypt** - BCrypt password hashing
-- **Docker** - Containerization
+- **Java 17** — Language
+- **Maven** — Build tool
+- **MySQL 8.0** — Database
+- **jjwt** — JWT library
+- **jBCrypt** — BCrypt password hashing
+- **Logback** — Structured logging (SLF4J)
+- **JUnit 5** — Testing
+- **Docker / Docker Compose** — Containerization
+- **GitHub Actions** — CI/CD
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
-
-## Contributing
-
-Contributions are welcome! Please open an issue or submit a pull request.
+MIT License — see [LICENSE](LICENSE) for details.
