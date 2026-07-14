@@ -7,8 +7,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Map;
 
-import com.jwt.server.utils.HttpException;
-
 public class SqlUtils {
     // Database connection parameters
     private static final String DB_URL;

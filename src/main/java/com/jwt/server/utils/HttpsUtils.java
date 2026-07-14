@@ -86,15 +86,6 @@ public class HttpsUtils {
                 }
             });
 
-            String[] paths = {
-                "/auth/register",       "/v1/auth/register",
-                "/auth/login",           "/v1/auth/login",
-                "/auth/user/delete",     "/v1/auth/user/delete",
-                "/auth/user/password",   "/v1/auth/user/password",
-                "/auth/user/username",   "/v1/auth/user/username",
-                "/api/health",           "/v1/api/health"
-            };
-
             RegisterHandler registerHandler = new RegisterHandler();
             LoginHandler loginHandler = new LoginHandler();
             DeleteUserHandler deleteUserHandler = new DeleteUserHandler();
@@ -102,16 +93,12 @@ public class HttpsUtils {
             UpdateUsernameHandler updateUsernameHandler = new UpdateUsernameHandler();
             HealthHandler healthHandler = new HealthHandler();
 
-            for (String path : paths) {
-                switch (path) {
-                    case "/auth/register", "/v1/auth/register" -> server.createContext(path, Middleware.wrap(registerHandler, "POST"));
-                    case "/auth/login", "/v1/auth/login" -> server.createContext(path, Middleware.wrap(loginHandler, "POST"));
-                    case "/auth/user/delete", "/v1/auth/user/delete" -> server.createContext(path, Middleware.wrapProtected(deleteUserHandler, "DELETE"));
-                    case "/auth/user/password", "/v1/auth/user/password" -> server.createContext(path, Middleware.wrapProtected(updatePasswordHandler, "PUT"));
-                    case "/auth/user/username", "/v1/auth/user/username" -> server.createContext(path, Middleware.wrapProtected(updateUsernameHandler, "PUT"));
-                    case "/api/health", "/v1/api/health" -> server.createContext(path, Middleware.wrap(healthHandler, "GET"));
-                }
-            }
+            server.createContext("/v1/auth/register", Middleware.wrap(registerHandler, "POST"));
+            server.createContext("/v1/auth/login", Middleware.wrap(loginHandler, "POST"));
+            server.createContext("/v1/auth/user/delete", Middleware.wrapProtected(deleteUserHandler, "DELETE"));
+            server.createContext("/v1/auth/user/password", Middleware.wrapProtected(updatePasswordHandler, "PUT"));
+            server.createContext("/v1/auth/user/username", Middleware.wrapProtected(updateUsernameHandler, "PUT"));
+            server.createContext("/v1/api/health", Middleware.wrap(healthHandler, "GET"));
 
             server.setExecutor(Executors.newCachedThreadPool());
             server.start();
