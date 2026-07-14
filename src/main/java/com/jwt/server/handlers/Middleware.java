@@ -23,7 +23,7 @@ public class Middleware {
                 }
             }
             if (!allowed) {
-                ResponseUtils.sendError(exchange, 405, "Method not allowed");
+                ResponseUtils.sendError(exchange, 405, "Only " + String.join(", ", allowedMethods) + " allowed");
                 return;
             }
 
