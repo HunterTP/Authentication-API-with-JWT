@@ -16,11 +16,6 @@ public class HealthHandler implements HttpHandler {
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
-        if (!exchange.getRequestMethod().equals("GET")) {
-            ResponseUtils.sendError(exchange, 405, "Only GET allowed");
-            return;
-        }
-
         boolean dbOk = SqlUtils.testConnection();
         String status = dbOk ? "ok" : "degraded";
         int statusCode = dbOk ? 200 : 503;

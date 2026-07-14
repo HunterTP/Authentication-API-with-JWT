@@ -104,12 +104,12 @@ public class HttpsUtils {
 
             for (String path : paths) {
                 switch (path) {
-                    case "/auth/register", "/v1/auth/register" -> server.createContext(path, Middleware.wrap(registerHandler));
-                    case "/auth/login", "/v1/auth/login" -> server.createContext(path, Middleware.wrap(loginHandler));
-                    case "/auth/user/delete", "/v1/auth/user/delete" -> server.createContext(path, Middleware.wrap(deleteUserHandler));
-                    case "/auth/user/password", "/v1/auth/user/password" -> server.createContext(path, Middleware.wrap(updatePasswordHandler));
-                    case "/auth/user/username", "/v1/auth/user/username" -> server.createContext(path, Middleware.wrap(updateUsernameHandler));
-                    case "/api/health", "/v1/api/health" -> server.createContext(path, Middleware.wrap(healthHandler));
+                    case "/auth/register", "/v1/auth/register" -> server.createContext(path, Middleware.wrap(registerHandler, "POST"));
+                    case "/auth/login", "/v1/auth/login" -> server.createContext(path, Middleware.wrap(loginHandler, "POST"));
+                    case "/auth/user/delete", "/v1/auth/user/delete" -> server.createContext(path, Middleware.wrap(deleteUserHandler, "DELETE"));
+                    case "/auth/user/password", "/v1/auth/user/password" -> server.createContext(path, Middleware.wrap(updatePasswordHandler, "PUT"));
+                    case "/auth/user/username", "/v1/auth/user/username" -> server.createContext(path, Middleware.wrap(updateUsernameHandler, "PUT"));
+                    case "/api/health", "/v1/api/health" -> server.createContext(path, Middleware.wrap(healthHandler, "GET"));
                 }
             }
 

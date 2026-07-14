@@ -22,11 +22,6 @@ public class UpdatePasswordHandler implements HttpHandler {
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
-        if (!exchange.getRequestMethod().equals("PUT")) {
-            ResponseUtils.sendError(exchange, 405, "Only PUT method is allowed");
-            return;
-        }
-
         if (!RequestUtils.isJsonContentType(exchange)) {
             ResponseUtils.sendError(exchange, 415, "Content-Type must be application/json");
             return;

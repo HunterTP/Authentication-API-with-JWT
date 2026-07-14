@@ -18,11 +18,6 @@ public class DeleteUserHandler implements HttpHandler {
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
-        if (!exchange.getRequestMethod().equals("DELETE")) {
-            ResponseUtils.sendError(exchange, 405, "Only DELETE method is allowed");
-            return;
-        }
-
         String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
