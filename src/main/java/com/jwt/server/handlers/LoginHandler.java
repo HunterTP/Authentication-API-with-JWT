@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.jwt.server.utils.AccountLocker;
+import com.jwt.server.utils.HttpException;
 import com.jwt.server.utils.JsonUtils;
 import com.jwt.server.utils.JwtUtils;
 import com.jwt.server.utils.RateLimiter;
@@ -30,8 +31,7 @@ public class LoginHandler implements HttpHandler {
 
         if (!rateLimiter.isAllowed(clientIp)) {
             log.warn("Rate limit exceeded for IP: {}", clientIp);
-            ResponseUtils.sendError(exchange, 429, "Too many requests. Please try again later.");
-            return;
+            throw new HttpException(429, "Too many requests. Please try again later.");
         }
 
         String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
@@ -39,43 +39,31 @@ public class LoginHandler implements HttpHandler {
         String password = JsonUtils.extractValue(body, "password");
 
         if (username == null || password == null) {
-            ResponseUtils.sendError(exchange, 400, "username and password are required");
-            return;
+            throw new HttpException(400, "username and password are required");
         }
 
         String userError = ValidationUtils.validateUsername(username);
-        if (userError != null) {
-            ResponseUtils.sendError(exchange, 400, userError);
-            return;
-        }
+        if (userError != null) throw new HttpException(400, userError);
 
         String passError = ValidationUtils.validatePassword(password);
-        if (passError != null) {
-            ResponseUtils.sendError(exchange, 400, passError);
-            return;
-        }
+        if (passError != null) throw new HttpException(400, passError);
 
         if (accountLocker.isLocked(username)) {
             log.warn("Account locked for {}", username);
-            ResponseUtils.sendError(exchange, 429, "Account is temporarily locked. Try again later.");
-            return;
+            throw new HttpException(429, "Account is temporarily locked. Try again later.");
         }
 
-        if (SqlUtils.checkUserCredentials(username, password)) {
-            accountLocker.reset(username);
-            try {
-                String token = JwtUtils.generateToken(username);
-                String response = "{\"token\":\"" + token + "\", \"message\":\"Login successful\"}";
-                ResponseUtils.send(exchange, 200, response);
-                log.info("Login successful: {}", username);
-            } catch (Exception e) {
-                log.error("Token generation failed: {}", e.getMessage());
-                ResponseUtils.sendError(exchange, 500, "Internal Server Error");
-            }
-        } else {
+        if (!SqlUtils.checkUserCredentials(username, password)) {
             accountLocker.recordFailedAttempt(username);
             log.warn("Login failed for {}", username);
-            ResponseUtils.sendError(exchange, 401, "username or password is incorrect");
+            throw new HttpException(401, "username or password is incorrect");
         }
+
+        accountLocker.reset(username);
+
+        String token = JwtUtils.generateToken(username);
+        String response = "{\"token\":\"" + token + "\", \"message\":\"Login successful\"}";
+        ResponseUtils.send(exchange, 200, response);
+        log.info("Login successful: {}", username);
     }
 }

@@ -5,6 +5,7 @@ import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.jwt.server.utils.HttpException;
 import com.jwt.server.utils.ResponseUtils;
 import com.jwt.server.utils.SqlUtils;
 import com.jwt.server.utils.TokenBlacklist;
@@ -20,20 +21,13 @@ public class DeleteUserHandler implements HttpHandler {
         String token = (String) exchange.getAttribute("token");
         String username = (String) exchange.getAttribute("username");
 
-        try {
-            boolean deleted = SqlUtils.deleteUser(username);
-            if (!deleted) {
-                ResponseUtils.sendError(exchange, 404, "User not found");
-                log.warn("Delete failed: {} not found", username);
-                return;
-            }
-            TokenBlacklist.invalidate(token);
-            String response = "{\"message\": \"User " + username + " was deleted\"}";
-            ResponseUtils.send(exchange, 200, response);
-            log.info("User deleted: {}", username);
-        } catch (Exception e) {
-            log.error("Delete failed for {}: {}", username, e.getMessage());
-            ResponseUtils.sendError(exchange, 500, "Internal Server Error");
+        if (!SqlUtils.deleteUser(username)) {
+            log.warn("Delete failed: {} not found", username);
+            throw new HttpException(404, "User not found");
         }
+
+        TokenBlacklist.invalidate(token);
+        ResponseUtils.send(exchange, 200, "{\"message\": \"User " + username + " was deleted\"}");
+        log.info("User deleted: {}", username);
     }
 }

@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.jwt.server.utils.CorsUtils;
+import com.jwt.server.utils.HttpException;
 import com.jwt.server.utils.JwtUtils;
 import com.jwt.server.utils.RequestUtils;
 import com.jwt.server.utils.ResponseUtils;
@@ -20,10 +21,17 @@ public class Middleware {
         return (HttpExchange exchange) -> {
             CorsUtils.addCorsHeaders(exchange);
             if (CorsUtils.handleOptionsRequest(exchange)) return;
-            if (!isMethodAllowed(exchange, allowedMethods)) return;
-            if (!requireJsonContentType(exchange)) return;
-
-            handleSafe(exchange, handler);
+            try {
+                ensureMethodAllowed(exchange, allowedMethods);
+                ensureJsonContentType(exchange);
+                handleSafe(exchange, handler);
+            } catch (HttpException e) {
+                log.warn("{} {}", e.getStatusCode(), e.getMessage());
+                quietlySendError(exchange, e.getStatusCode(), e.getMessage());
+            } catch (Exception e) {
+                log.error("Unexpected error in wrap", e);
+                quietlySendError(exchange, 500, "Internal Server Error");
+            }
         };
     }
 
@@ -31,60 +39,69 @@ public class Middleware {
         return (HttpExchange exchange) -> {
             CorsUtils.addCorsHeaders(exchange);
             if (CorsUtils.handleOptionsRequest(exchange)) return;
-            if (!isMethodAllowed(exchange, allowedMethods)) return;
-            if (!requireJsonContentType(exchange)) return;
-
-            String token = extractToken(exchange);
-            if (token == null) {
-                ResponseUtils.sendError(exchange, 401, "No Token provided");
-                return;
-            }
-
-            String username;
             try {
-                username = JwtUtils.extractUsername(token);
-            } catch (Exception e) {
-                ResponseUtils.sendError(exchange, 401, "Invalid token");
-                return;
-            }
+                ensureMethodAllowed(exchange, allowedMethods);
+                ensureJsonContentType(exchange);
 
-            exchange.setAttribute("token", token);
-            exchange.setAttribute("username", username);
-            handleSafe(exchange, handler);
+                String token = extractToken(exchange);
+                if (token == null) throw new HttpException(401, "No Token provided");
+
+                String username;
+                try {
+                    username = JwtUtils.extractUsername(token);
+                } catch (Exception e) {
+                    throw new HttpException(401, "Invalid token");
+                }
+
+                exchange.setAttribute("token", token);
+                exchange.setAttribute("username", username);
+                handleSafe(exchange, handler);
+            } catch (HttpException e) {
+                log.warn("{} {}", e.getStatusCode(), e.getMessage());
+                quietlySendError(exchange, e.getStatusCode(), e.getMessage());
+            } catch (Exception e) {
+                log.error("Unexpected error in wrapProtected", e);
+                quietlySendError(exchange, 500, "Internal Server Error");
+            }
         };
     }
 
     private static void handleSafe(HttpExchange exchange, HttpHandler handler) throws IOException {
         try {
             handler.handle(exchange);
+        } catch (HttpException e) {
+            throw e;
         } catch (Exception e) {
-            log.error("Unhandled error: {}", e.getMessage());
-            ResponseUtils.sendError(exchange, 500, "Internal Server Error");
+            log.error("Unhandled error in handler", e);
+            throw new HttpException(500, "Internal Server Error");
         }
     }
 
-    private static boolean isMethodAllowed(HttpExchange exchange, String... allowedMethods) throws IOException {
+    private static void ensureMethodAllowed(HttpExchange exchange, String... allowedMethods) throws IOException {
         String method = exchange.getRequestMethod();
         for (String m : allowedMethods) {
-            if (m.equalsIgnoreCase(method)) return true;
+            if (m.equalsIgnoreCase(method)) return;
         }
-        ResponseUtils.sendError(exchange, 405, "Only " + String.join(", ", allowedMethods) + " allowed");
-        return false;
+        throw new HttpException(405, "Only " + String.join(", ", allowedMethods) + " allowed");
     }
 
-    private static boolean requireJsonContentType(HttpExchange exchange) throws IOException {
+    private static void ensureJsonContentType(HttpExchange exchange) throws IOException {
         String method = exchange.getRequestMethod();
-        if ("GET".equalsIgnoreCase(method) || "DELETE".equalsIgnoreCase(method)) return true;
+        if ("GET".equalsIgnoreCase(method) || "DELETE".equalsIgnoreCase(method)) return;
         if (!RequestUtils.isJsonContentType(exchange)) {
-            ResponseUtils.sendError(exchange, 415, "Content-Type must be application/json");
-            return false;
+            throw new HttpException(415, "Content-Type must be application/json");
         }
-        return true;
     }
 
     private static String extractToken(HttpExchange exchange) {
         String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) return null;
         return authHeader.substring(7);
+    }
+
+    private static void quietlySendError(HttpExchange exchange, int statusCode, String message) {
+        try {
+            ResponseUtils.sendError(exchange, statusCode, message);
+        } catch (IOException ignored) {}
     }
 }

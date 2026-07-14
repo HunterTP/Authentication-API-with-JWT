@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.jwt.server.utils.HttpException;
 import com.jwt.server.utils.JsonUtils;
 import com.jwt.server.utils.ResponseUtils;
 import com.jwt.server.utils.SqlUtils;
@@ -25,37 +26,20 @@ public class UpdateUsernameHandler implements HttpHandler {
         String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
         String newUsername = JsonUtils.extractValue(body, "username");
 
-        if (newUsername == null) {
-            ResponseUtils.sendError(exchange, 400, "username is required");
-            return;
-        }
+        if (newUsername == null) throw new HttpException(400, "username is required");
 
         String userError = ValidationUtils.validateUsername(newUsername);
-        if (userError != null) {
-            ResponseUtils.sendError(exchange, 400, userError);
-            return;
-        }
+        if (userError != null) throw new HttpException(400, userError);
 
         String oldUsername = (String) exchange.getAttribute("username");
 
-        try {
-            boolean updated = SqlUtils.updateUsername(oldUsername, newUsername);
-            if (!updated) {
-                ResponseUtils.sendError(exchange, 404, "User not found");
-                log.warn("Username update failed: {} not found", oldUsername);
-                return;
-            }
-            TokenBlacklist.invalidate(token);
-            String response = "{\"message\": \"Username updated\"}";
-            ResponseUtils.send(exchange, 200, response);
-            log.info("Username changed from {} to {}", oldUsername, newUsername);
-        } catch (Exception e) {
-            if (e.getMessage().contains("duplicate username")) {
-                ResponseUtils.sendError(exchange, 409, "Username already exists");
-                return;
-            }
-            log.error("Username update failed: {}", e.getMessage());
-            ResponseUtils.sendError(exchange, 500, "Internal Server Error");
+        if (!SqlUtils.updateUsername(oldUsername, newUsername)) {
+            log.warn("Username update failed: {} not found", oldUsername);
+            throw new HttpException(404, "User not found");
         }
+
+        TokenBlacklist.invalidate(token);
+        ResponseUtils.send(exchange, 200, "{\"message\": \"Username updated\"}");
+        log.info("Username changed from {} to {}", oldUsername, newUsername);
     }
 }

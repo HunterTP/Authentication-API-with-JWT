@@ -7,6 +7,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Map;
 
+import com.jwt.server.utils.HttpException;
+
 public class SqlUtils {
     // Database connection parameters
     private static final String DB_URL;
@@ -56,7 +58,7 @@ public class SqlUtils {
         }
     }
 
-    public static boolean registerUser(String username, String password) throws Exception {
+    public static boolean registerUser(String username, String password) throws HttpException {
         String sql = "INSERT INTO users (username, password, salt) VALUES (?, ?, ?)";
         
         try (Connection conn = getConnection();
@@ -70,12 +72,15 @@ public class SqlUtils {
             return pstmt.executeUpdate() > 0;
             
         } catch (Exception e) {
-            throw new Exception(e.getMessage());
+            if (e.getMessage() != null && e.getMessage().contains("Duplicate entry")) {
+                throw new HttpException(409, "Username already exists");
+            }
+            throw new HttpException(500, "Internal Server Error");
         }
     }
 
     // Deletes a user
-    public static boolean deleteUser(String username) throws Exception {
+    public static boolean deleteUser(String username) throws HttpException {
         String sql = "DELETE FROM users WHERE username = ?";
         
         try (Connection conn = getConnection();
@@ -85,11 +90,11 @@ public class SqlUtils {
             return pstmt.executeUpdate() > 0;
             
         } catch (Exception e) {
-            throw new Exception("Database error: " + e.getMessage());
+            throw new HttpException(500, "Internal Server Error");
         }
     }
 
-    public static boolean updateUsername(String oldUsername, String newUsername) throws Exception {
+    public static boolean updateUsername(String oldUsername, String newUsername) throws HttpException {
         String sql = "UPDATE users SET username = ? WHERE username = ?";
         
         try (Connection conn = getConnection();
@@ -100,14 +105,14 @@ public class SqlUtils {
             return pstmt.executeUpdate() > 0;
             
         } catch (Exception e) {
-            if (e.getMessage().contains("Duplicate entry")) {
-                throw new Exception("duplicate username");
+            if (e.getMessage() != null && e.getMessage().contains("Duplicate entry")) {
+                throw new HttpException(409, "Username already exists");
             }
-            throw new Exception("Database error: " + e.getMessage());
+            throw new HttpException(500, "Internal Server Error");
         }
     }
 
-    public static boolean updatePassword(String username, String newPassword) throws Exception {
+    public static boolean updatePassword(String username, String newPassword) throws HttpException {
         String sql = "UPDATE users SET password = ?, salt = ? WHERE username = ?";
         
         try (Connection conn = getConnection();
@@ -121,7 +126,7 @@ public class SqlUtils {
             return pstmt.executeUpdate() > 0;
             
         } catch (Exception e) {
-            throw new Exception("Database error: " + e.getMessage());
+            throw new HttpException(500, "Internal Server Error");
         }
     }
 

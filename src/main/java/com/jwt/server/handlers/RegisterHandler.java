@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.jwt.server.utils.HttpException;
 import com.jwt.server.utils.JsonUtils;
 import com.jwt.server.utils.RateLimiter;
 import com.jwt.server.utils.ResponseUtils;
@@ -27,8 +28,7 @@ public class RegisterHandler implements HttpHandler {
 
         if (!rateLimiter.isAllowed(clientIp)) {
             log.warn("Rate limit exceeded for IP: {} on register", clientIp);
-            ResponseUtils.sendError(exchange, 429, "Too many requests. Please try again later.");
-            return;
+            throw new HttpException(429, "Too many requests. Please try again later.");
         }
 
         String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
@@ -36,37 +36,17 @@ public class RegisterHandler implements HttpHandler {
         String password = JsonUtils.extractValue(body, "password");
 
         if (username == null || password == null) {
-            ResponseUtils.sendError(exchange, 400, "username and password are required");
-            return;
+            throw new HttpException(400, "username and password are required");
         }
 
         String userError = ValidationUtils.validateUsername(username);
-        if (userError != null) {
-            ResponseUtils.sendError(exchange, 400, userError);
-            return;
-        }
+        if (userError != null) throw new HttpException(400, userError);
 
         String passError = ValidationUtils.validatePassword(password);
-        if (passError != null) {
-            ResponseUtils.sendError(exchange, 400, passError);
-            return;
-        }
+        if (passError != null) throw new HttpException(400, passError);
 
-        try {
-            if (SqlUtils.registerUser(username, password)) {
-                String response = "{\"message\": \"User " + username + " was created\"}";
-                ResponseUtils.send(exchange, 201, response);
-                log.info("User registered: {}", username);
-            } else {
-                ResponseUtils.sendError(exchange, 500, "Internal Server Error");
-            }
-        } catch (Exception e) {
-            if (e.getMessage().contains("Duplicate entry")) {
-                ResponseUtils.sendError(exchange, 409, "Username already exists");
-            } else {
-                log.error("Registration failed: {}", e.getMessage());
-                ResponseUtils.sendError(exchange, 500, "Internal Server Error");
-            }
-        }
+        SqlUtils.registerUser(username, password);
+        ResponseUtils.send(exchange, 201, "{\"message\": \"User " + username + " was created\"}");
+        log.info("User registered: {}", username);
     }
 }
