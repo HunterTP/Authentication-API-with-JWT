@@ -5,7 +5,6 @@ import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.jwt.server.utils.JwtUtils;
 import com.jwt.server.utils.ResponseUtils;
 import com.jwt.server.utils.SqlUtils;
 import com.jwt.server.utils.TokenBlacklist;
@@ -18,21 +17,8 @@ public class DeleteUserHandler implements HttpHandler {
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
-        String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            ResponseUtils.sendError(exchange, 401, "No Token provided");
-            return;
-        }
-
-        String token = authHeader.substring(7);
-        String username;
-        try {
-            username = JwtUtils.extractUsername(token);
-        } catch (Exception e) {
-            ResponseUtils.sendError(exchange, 401, "Invalid token");
-            return;
-        }
+        String token = (String) exchange.getAttribute("token");
+        String username = (String) exchange.getAttribute("username");
 
         try {
             boolean deleted = SqlUtils.deleteUser(username);

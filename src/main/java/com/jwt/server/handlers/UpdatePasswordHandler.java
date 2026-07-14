@@ -7,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.jwt.server.utils.JsonUtils;
-import com.jwt.server.utils.JwtUtils;
 import com.jwt.server.utils.RequestUtils;
 import com.jwt.server.utils.ResponseUtils;
 import com.jwt.server.utils.SqlUtils;
@@ -27,14 +26,7 @@ public class UpdatePasswordHandler implements HttpHandler {
             return;
         }
 
-        String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            ResponseUtils.sendError(exchange, 401, "No Token provided");
-            return;
-        }
-
-        String token = authHeader.substring(7);
+        String token = (String) exchange.getAttribute("token");
 
         String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
         String newPassword = JsonUtils.extractValue(body, "password");
@@ -50,13 +42,7 @@ public class UpdatePasswordHandler implements HttpHandler {
             return;
         }
 
-        String username;
-        try {
-            username = JwtUtils.extractUsername(token);
-        } catch (Exception e) {
-            ResponseUtils.sendError(exchange, 401, "Invalid token");
-            return;
-        }
+        String username = (String) exchange.getAttribute("username");
 
         try {
             boolean updated = SqlUtils.updatePassword(username, newPassword);

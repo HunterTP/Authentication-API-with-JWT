@@ -106,9 +106,9 @@ public class HttpsUtils {
                 switch (path) {
                     case "/auth/register", "/v1/auth/register" -> server.createContext(path, Middleware.wrap(registerHandler, "POST"));
                     case "/auth/login", "/v1/auth/login" -> server.createContext(path, Middleware.wrap(loginHandler, "POST"));
-                    case "/auth/user/delete", "/v1/auth/user/delete" -> server.createContext(path, Middleware.wrap(deleteUserHandler, "DELETE"));
-                    case "/auth/user/password", "/v1/auth/user/password" -> server.createContext(path, Middleware.wrap(updatePasswordHandler, "PUT"));
-                    case "/auth/user/username", "/v1/auth/user/username" -> server.createContext(path, Middleware.wrap(updateUsernameHandler, "PUT"));
+                    case "/auth/user/delete", "/v1/auth/user/delete" -> server.createContext(path, Middleware.wrapProtected(deleteUserHandler, "DELETE"));
+                    case "/auth/user/password", "/v1/auth/user/password" -> server.createContext(path, Middleware.wrapProtected(updatePasswordHandler, "PUT"));
+                    case "/auth/user/username", "/v1/auth/user/username" -> server.createContext(path, Middleware.wrapProtected(updateUsernameHandler, "PUT"));
                     case "/api/health", "/v1/api/health" -> server.createContext(path, Middleware.wrap(healthHandler, "GET"));
                 }
             }
