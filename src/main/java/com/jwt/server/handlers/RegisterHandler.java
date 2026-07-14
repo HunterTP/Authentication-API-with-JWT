@@ -8,7 +8,6 @@ import org.slf4j.LoggerFactory;
 
 import com.jwt.server.utils.JsonUtils;
 import com.jwt.server.utils.RateLimiter;
-import com.jwt.server.utils.RequestUtils;
 import com.jwt.server.utils.ResponseUtils;
 import com.jwt.server.utils.SqlUtils;
 import com.jwt.server.utils.ValidationUtils;
@@ -22,11 +21,6 @@ public class RegisterHandler implements HttpHandler {
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
-        if (!RequestUtils.isJsonContentType(exchange)) {
-            ResponseUtils.sendError(exchange, 415, "Content-Type must be application/json");
-            return;
-        }
-
         String clientIp = exchange.getRemoteAddress() != null
             ? exchange.getRemoteAddress().getAddress().getHostAddress()
             : "unknown";

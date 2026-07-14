@@ -4,6 +4,7 @@ import java.io.IOException;
 
 import com.jwt.server.utils.CorsUtils;
 import com.jwt.server.utils.JwtUtils;
+import com.jwt.server.utils.RequestUtils;
 import com.jwt.server.utils.ResponseUtils;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -14,8 +15,8 @@ public class Middleware {
         return (HttpExchange exchange) -> {
             CorsUtils.addCorsHeaders(exchange);
             if (CorsUtils.handleOptionsRequest(exchange)) return;
-
             if (!isMethodAllowed(exchange, allowedMethods)) return;
+            if (!requireJsonContentType(exchange)) return;
 
             handler.handle(exchange);
         };
@@ -25,8 +26,8 @@ public class Middleware {
         return (HttpExchange exchange) -> {
             CorsUtils.addCorsHeaders(exchange);
             if (CorsUtils.handleOptionsRequest(exchange)) return;
-
             if (!isMethodAllowed(exchange, allowedMethods)) return;
+            if (!requireJsonContentType(exchange)) return;
 
             String token = extractToken(exchange);
             if (token == null) {
@@ -55,6 +56,16 @@ public class Middleware {
         }
         ResponseUtils.sendError(exchange, 405, "Only " + String.join(", ", allowedMethods) + " allowed");
         return false;
+    }
+
+    private static boolean requireJsonContentType(HttpExchange exchange) throws IOException {
+        String method = exchange.getRequestMethod();
+        if ("GET".equalsIgnoreCase(method) || "DELETE".equalsIgnoreCase(method)) return true;
+        if (!RequestUtils.isJsonContentType(exchange)) {
+            ResponseUtils.sendError(exchange, 415, "Content-Type must be application/json");
+            return false;
+        }
+        return true;
     }
 
     private static String extractToken(HttpExchange exchange) {

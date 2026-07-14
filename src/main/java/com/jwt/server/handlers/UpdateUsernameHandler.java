@@ -7,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.jwt.server.utils.JsonUtils;
-import com.jwt.server.utils.RequestUtils;
 import com.jwt.server.utils.ResponseUtils;
 import com.jwt.server.utils.SqlUtils;
 import com.jwt.server.utils.TokenBlacklist;
@@ -21,11 +20,6 @@ public class UpdateUsernameHandler implements HttpHandler {
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
-        if (!RequestUtils.isJsonContentType(exchange)) {
-            ResponseUtils.sendError(exchange, 415, "Content-Type must be application/json");
-            return;
-        }
-
         String token = (String) exchange.getAttribute("token");
 
         String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
