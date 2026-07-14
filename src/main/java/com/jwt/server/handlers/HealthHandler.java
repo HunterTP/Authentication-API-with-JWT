@@ -5,7 +5,6 @@ import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.jwt.server.utils.CorsUtils;
 import com.jwt.server.utils.ResponseUtils;
 import com.jwt.server.utils.SqlUtils;
 import com.sun.net.httpserver.HttpExchange;
@@ -17,11 +16,6 @@ public class HealthHandler implements HttpHandler {
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
-        CorsUtils.addCorsHeaders(exchange);
-        if (CorsUtils.handleOptionsRequest(exchange)) {
-            return;
-        }
-
         if (!exchange.getRequestMethod().equals("GET")) {
             ResponseUtils.sendError(exchange, 405, "Only GET allowed");
             return;

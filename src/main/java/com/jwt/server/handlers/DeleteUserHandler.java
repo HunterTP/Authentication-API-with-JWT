@@ -5,7 +5,6 @@ import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.jwt.server.utils.CorsUtils;
 import com.jwt.server.utils.JwtUtils;
 import com.jwt.server.utils.ResponseUtils;
 import com.jwt.server.utils.SqlUtils;
@@ -19,11 +18,6 @@ public class DeleteUserHandler implements HttpHandler {
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
-        CorsUtils.addCorsHeaders(exchange);
-        if (CorsUtils.handleOptionsRequest(exchange)) {
-            return;
-        }
-
         if (!exchange.getRequestMethod().equals("DELETE")) {
             ResponseUtils.sendError(exchange, 405, "Only DELETE method is allowed");
             return;

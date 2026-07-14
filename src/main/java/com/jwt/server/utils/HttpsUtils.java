@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import com.jwt.server.handlers.DeleteUserHandler;
 import com.jwt.server.handlers.HealthHandler;
 import com.jwt.server.handlers.LoginHandler;
+import com.jwt.server.handlers.Middleware;
 import com.jwt.server.handlers.RegisterHandler;
 import com.jwt.server.handlers.UpdatePasswordHandler;
 import com.jwt.server.handlers.UpdateUsernameHandler;
@@ -103,12 +104,12 @@ public class HttpsUtils {
 
             for (String path : paths) {
                 switch (path) {
-                    case "/auth/register", "/v1/auth/register" -> server.createContext(path, registerHandler);
-                    case "/auth/login", "/v1/auth/login" -> server.createContext(path, loginHandler);
-                    case "/auth/user/delete", "/v1/auth/user/delete" -> server.createContext(path, deleteUserHandler);
-                    case "/auth/user/password", "/v1/auth/user/password" -> server.createContext(path, updatePasswordHandler);
-                    case "/auth/user/username", "/v1/auth/user/username" -> server.createContext(path, updateUsernameHandler);
-                    case "/api/health", "/v1/api/health" -> server.createContext(path, healthHandler);
+                    case "/auth/register", "/v1/auth/register" -> server.createContext(path, Middleware.wrap(registerHandler));
+                    case "/auth/login", "/v1/auth/login" -> server.createContext(path, Middleware.wrap(loginHandler));
+                    case "/auth/user/delete", "/v1/auth/user/delete" -> server.createContext(path, Middleware.wrap(deleteUserHandler));
+                    case "/auth/user/password", "/v1/auth/user/password" -> server.createContext(path, Middleware.wrap(updatePasswordHandler));
+                    case "/auth/user/username", "/v1/auth/user/username" -> server.createContext(path, Middleware.wrap(updateUsernameHandler));
+                    case "/api/health", "/v1/api/health" -> server.createContext(path, Middleware.wrap(healthHandler));
                 }
             }
 

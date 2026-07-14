@@ -7,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.jwt.server.utils.AccountLocker;
-import com.jwt.server.utils.CorsUtils;
 import com.jwt.server.utils.JsonUtils;
 import com.jwt.server.utils.JwtUtils;
 import com.jwt.server.utils.RateLimiter;
@@ -26,11 +25,6 @@ public class LoginHandler implements HttpHandler {
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
-        CorsUtils.addCorsHeaders(exchange);
-        if (CorsUtils.handleOptionsRequest(exchange)) {
-            return;
-        }
-
         if (!exchange.getRequestMethod().equals("POST")) {
             ResponseUtils.sendError(exchange, 405, "Only POST method is allowed");
             return;

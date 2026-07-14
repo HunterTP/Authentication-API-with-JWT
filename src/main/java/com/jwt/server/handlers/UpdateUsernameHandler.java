@@ -6,7 +6,6 @@ import java.nio.charset.StandardCharsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.jwt.server.utils.CorsUtils;
 import com.jwt.server.utils.JsonUtils;
 import com.jwt.server.utils.JwtUtils;
 import com.jwt.server.utils.RequestUtils;
@@ -23,11 +22,6 @@ public class UpdateUsernameHandler implements HttpHandler {
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
-        CorsUtils.addCorsHeaders(exchange);
-        if (CorsUtils.handleOptionsRequest(exchange)) {
-            return;
-        }
-
         if (!exchange.getRequestMethod().equals("PUT")) {
             ResponseUtils.sendError(exchange, 405, "Only PUT method is allowed");
             return;
