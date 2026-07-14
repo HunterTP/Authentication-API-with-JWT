@@ -2,6 +2,9 @@ package com.jwt.server.handlers;
 
 import java.io.IOException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.jwt.server.utils.CorsUtils;
 import com.jwt.server.utils.JwtUtils;
 import com.jwt.server.utils.RequestUtils;
@@ -11,6 +14,8 @@ import com.sun.net.httpserver.HttpHandler;
 
 public class Middleware {
 
+    private static final Logger log = LoggerFactory.getLogger(Middleware.class);
+
     public static HttpHandler wrap(HttpHandler handler, String... allowedMethods) {
         return (HttpExchange exchange) -> {
             CorsUtils.addCorsHeaders(exchange);
@@ -18,7 +23,7 @@ public class Middleware {
             if (!isMethodAllowed(exchange, allowedMethods)) return;
             if (!requireJsonContentType(exchange)) return;
 
-            handler.handle(exchange);
+            handleSafe(exchange, handler);
         };
     }
 
@@ -45,8 +50,17 @@ public class Middleware {
 
             exchange.setAttribute("token", token);
             exchange.setAttribute("username", username);
-            handler.handle(exchange);
+            handleSafe(exchange, handler);
         };
+    }
+
+    private static void handleSafe(HttpExchange exchange, HttpHandler handler) throws IOException {
+        try {
+            handler.handle(exchange);
+        } catch (Exception e) {
+            log.error("Unhandled error: {}", e.getMessage());
+            ResponseUtils.sendError(exchange, 500, "Internal Server Error");
+        }
     }
 
     private static boolean isMethodAllowed(HttpExchange exchange, String... allowedMethods) throws IOException {
