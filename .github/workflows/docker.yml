@@ -83,25 +83,47 @@ jobs:
 
       - name: Integration tests
         run: |
-          echo "=== Register user ==="
-          curl -sk -X POST https://localhost:8443/v1/auth/register \
+          set -eu
+          API_BASE="https://localhost:8443"
+          fail=false
+
+          request_status() {
+            local method=$1 path=$2
+            shift 2
+            curl -sk -o /dev/null -w "%{http_code}" -X "$method" "$@" "${API_BASE}${path}"
+          }
+
+          echo "=== 1. Register ==="
+          code=$(request_status POST /v1/auth/register \
             -H "Content-Type: application/json" \
-            -d '{"username":"testuser","password":"testpass123"}' && echo ""
+            -d '{"username":"testuser","password":"testpass123"}')
+          if [ "$code" != "201" ]; then echo "FAIL register: HTTP $code"; fail=true; else echo "OK (201)"; fi
 
-          echo "=== Login ==="
-          TOKEN=$(curl -sk -X POST https://localhost:8443/v1/auth/login \
+          echo "=== 2. Login ==="
+          out=$(curl -sk -X POST "${API_BASE}/v1/auth/login" \
             -H "Content-Type: application/json" \
-            -d '{"username":"testuser","password":"testpass123"}' | \
-            python3 -c "import sys,json; print(json.load(sys.stdin)['token'])" 2>/dev/null)
-          echo "Token length: ${#TOKEN}"
+            -d '{"username":"testuser","password":"testpass123"}') || true
+          TOKEN=$(echo "$out" | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])" 2>/dev/null || true)
+          if [ -z "$TOKEN" ]; then
+            echo "FAIL login: $out"; fail=true
+          else
+            echo "OK, token length: ${#TOKEN}"
+          fi
 
-          echo "=== Healthcheck ==="
-          curl -sk https://localhost:8443/v1/api/health
+          echo "=== 3. Healthcheck ==="
+          code=$(request_status GET /v1/api/health)
+          if [ "$code" != "200" ]; then echo "FAIL healthcheck: HTTP $code"; fail=true; else echo "OK (200)"; fi
 
-          echo "=== Delete user ==="
-          curl -sk -X DELETE https://localhost:8443/v1/auth/user/delete \
-            -H "Authorization: Bearer $TOKEN"
+          echo "=== 4. Delete user ==="
+          code=$(request_status DELETE /v1/auth/user/delete \
+            -H "Authorization: Bearer $TOKEN")
+          if [ "$code" != "200" ]; then echo "FAIL delete: HTTP $code"; fail=true; else echo "OK (200)"; fi
 
+          if [ "$fail" = true ]; then
+            echo ""
+            echo "=== Some integration tests FAILED ==="
+            exit 1
+          fi
           echo ""
           echo "=== All integration tests passed ==="
 
