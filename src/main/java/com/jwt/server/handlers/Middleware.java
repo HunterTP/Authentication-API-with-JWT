@@ -28,7 +28,7 @@ public class Middleware {
             } catch (HttpException e) {
                 log.warn("{} {}", e.getStatusCode(), e.getMessage());
                 quietlySendError(exchange, e.getStatusCode(), e.getMessage());
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 log.error("Unexpected error in wrap", e);
                 quietlySendError(exchange, 500, "Internal Server Error");
             }
@@ -59,7 +59,7 @@ public class Middleware {
             } catch (HttpException e) {
                 log.warn("{} {}", e.getStatusCode(), e.getMessage());
                 quietlySendError(exchange, e.getStatusCode(), e.getMessage());
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 log.error("Unexpected error in wrapProtected", e);
                 quietlySendError(exchange, 500, "Internal Server Error");
             }
@@ -71,7 +71,7 @@ public class Middleware {
             handler.handle(exchange);
         } catch (HttpException e) {
             throw e;
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.error("Unhandled error in handler", e);
             throw new HttpException(500, "Internal Server Error");
         }
