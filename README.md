@@ -13,7 +13,7 @@ A secure, production-ready Java REST API for user authentication using JWT token
 - BCrypt password hashing with pepper for additional security
 - HTTPS support with auto-generated self-signed SSL certificates
 - MySQL database for persistent user storage
-- RESTful API endpoints with dual path support (`/auth/*` and `/v1/auth/*`)
+- RESTful API endpoints with versioned path (`/v1/auth/*`)
 - Rate limiting: 20 requests per 60 seconds per IP (sliding window)
 - Account jailing: 5 failed logins → 15-minute lockout per user
 - Token blacklist: invalidates tokens on password/username change or account deletion
@@ -27,7 +27,7 @@ A secure, production-ready Java REST API for user authentication using JWT token
 - Token blacklist persisted in database (survives restarts)
 - CI/CD pipeline with unit tests, integration tests, OWASP dependency check, and SpotBugs
 - VS Code launch config with automatic `.env` loading
-- 25-step sequential test suite (`requests.http`) importable by REST Clients
+- 24-step sequential test suite (`requests.http`) importable by REST Clients
 
 ## Quick Start
 
@@ -96,8 +96,6 @@ All configuration is via environment variables:
 
 ## API Endpoints
 
-Dual path support: both legacy (`/auth/...`) and versioned (`/v1/auth/...`) paths work identically.
-
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
 | POST | `/v1/auth/register` | Register new user | No |
@@ -139,7 +137,7 @@ curl -k -X DELETE https://localhost:8443/v1/auth/user/delete \
   -H "Authorization: Bearer <your_token>"
 ```
 
-The full sequential 25-request test suite is in [`requests.http`](requests.http) (importable by VS Code REST Client or IntelliJ HTTP Client).
+The full sequential 24-request test suite is in [`requests.http`](requests.http) (importable by VS Code REST Client or IntelliJ HTTP Client).
 
 ## Docker Architecture
 
@@ -262,6 +260,7 @@ When a user changes their password or username (or deletes their account), the c
 
 - No SQL error messages leak to the client (generic `500 Internal Server Error`)
 - All error messages are JSON-escaped to prevent injection
+- `HttpException` carries status code + message, caught centrally by `Middleware`
 - Invalid methods return `405 Method Not Allowed`
 - Wrong Content-Type returns `415 Unsupported Media Type`
 - Missing/invalid tokens return `401 Unauthorized`
@@ -298,42 +297,52 @@ Authentication-API-with-JWT/
 ├── src/
 │   ├── main/java/com/jwt/server/
 │   │   ├── Main.java                  # Entry point
-│   │   ├── handlers/                  # HTTP request handlers
-│   │   │   ├── RegisterHandler.java
+│   │   ├── config/
+│   │   │   └── Config.java            # Environment config
+│   │   ├── handler/
 │   │   │   ├── LoginHandler.java
+│   │   │   ├── RegisterHandler.java
 │   │   │   ├── DeleteUserHandler.java
 │   │   │   ├── UpdatePasswordHandler.java
 │   │   │   ├── UpdateUsernameHandler.java
 │   │   │   └── HealthHandler.java
-│   │   └── utils/                     # Utilities
-│   │       ├── AccountLocker.java     # Per-account brute-force protection
-│   │       ├── Config.java            # Environment config
-│   │       ├── CorsUtils.java         # CORS headers
-│   │       ├── HttpsUtils.java        # SSL server setup
-│   │       ├── JbcryptUtils.java      # BCrypt + pepper hashing
-│   │       ├── JsonUtils.java         # Simple JSON parser
-│   │       ├── JwtUtils.java          # JWT generation + validation
-│   │       ├── RateLimiter.java       # Per-IP sliding window rate limiter
-│   │       ├── RequestUtils.java      # Content-Type validation
-│   │       ├── ResponseUtils.java     # JSON responses + security headers
-│   │       ├── SqlUtils.java          # Database operations
-│   │       ├── TokenBlacklist.java    # Post-mutation token invalidation
+│   │   ├── middleware/
+│   │   │   └── Middleware.java         # CORS, method validation, Content-Type,
+│   │   │                               # token extraction, exception safety
+│   │   ├── security/
+│   │   │   ├── JwtUtils.java          # JWT generation + validation
+│   │   │   ├── CorsUtils.java         # CORS headers
+│   │   │   ├── RateLimiter.java       # Per-IP sliding window rate limiter
+│   │   │   └── AccountLocker.java     # Per-account brute-force protection
+│   │   ├── persistence/
+│   │   │   ├── SqlUtils.java          # Database operations
+│   │   │   ├── TokenBlacklist.java    # Post-mutation token invalidation
+│   │   │   └── JbcryptUtils.java      # BCrypt + pepper hashing
+│   │   ├── http/
+│   │   │   ├── HttpsUtils.java        # SSL server setup
+│   │   │   ├── RequestUtils.java      # Content-Type validation
+│   │   │   ├── ResponseUtils.java     # JSON responses + security headers
+│   │   │   └── JsonUtils.java         # Simple JSON parser
+│   │   ├── exception/
+│   │   │   └── HttpException.java     # Status code + message exception
+│   │   └── validation/
 │   │       └── ValidationUtils.java   # Username/password validation
 │   ├── main/resources/
 │   │   └── logback.xml
-│   └── test/java/com/jwt/server/utils/
-│       ├── ConfigTest.java
-│       ├── JsonUtilsTest.java
-│       ├── RateLimiterTest.java
-│       └── ValidationUtilsTest.java
+│   └── test/java/com/jwt/server/
+│       ├── config/ConfigTest.java
+│       ├── http/JsonUtilsTest.java
+│       ├── security/RateLimiterTest.java
+│       └── validation/ValidationUtilsTest.java
 ├── init-db/
 │   ├── init.sh              # Creates appuser with mysql_native_password
 │   └── init.sql             # Creates users table + index
 ├── .env.example             # Environment variable template
 ├── .env                     # Local environment (git-ignored)
 ├── .vscode/
-│   └── launch.json          # VS Code launch config (loads .env)
-├── requests.http            # 25-step sequential test suite (VS Code / IntelliJ)
+│   ├── launch.json          # VS Code launch config (loads .env)
+│   └── settings.json
+├── requests.http            # 24-step sequential test suite (VS Code / IntelliJ)
 ├── pom.xml
 ├── Dockerfile
 ├── docker-compose.yml
