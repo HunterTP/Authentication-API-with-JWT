@@ -3,6 +3,7 @@ package com.jwt.server.persistence;
 import org.mindrot.jbcrypt.BCrypt;
 
 import com.jwt.server.config.Config;
+import com.jwt.server.exception.HttpException;
 
 public class JbcryptUtils {
 
@@ -16,7 +17,7 @@ public class JbcryptUtils {
         return hash;
     }
 
-    public String HashPassword(String password, String username) {
+    public String HashPassword(String password, String username) throws HttpException {
         String salt = SqlUtils.getSalt(username);
         if (salt == null) return null;
         String hashedpassword = BCrypt.hashpw((PEPPER != null ? PEPPER : "") + password, salt);

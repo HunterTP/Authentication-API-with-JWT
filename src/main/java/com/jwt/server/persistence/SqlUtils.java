@@ -131,7 +131,7 @@ public class SqlUtils {
     }
 
     // Verify user credentials
-    public static boolean checkUserCredentials(String username, String password) {
+    public static boolean checkUserCredentials(String username, String password) throws HttpException {
         String hashedPassword = new JbcryptUtils().HashPassword(password, username);
         if (hashedPassword == null) return false;
 
@@ -146,12 +146,11 @@ public class SqlUtils {
             return rs.next();
             
         } catch (Exception e) {
-            System.err.println("Database error: " + e.getMessage());
-            return false;
+            throw new HttpException(500, "Internal Server Error");
         }
     }
 
-    public static String getSalt (String username) {
+    public static String getSalt (String username) throws HttpException {
         String sql = "SELECT salt FROM users WHERE username = ?";
         
         try (Connection conn = getConnection();
@@ -165,8 +164,7 @@ public class SqlUtils {
             return null;
             
         } catch (Exception e) {
-            System.err.println("Database error: " + e.getMessage());
-            return null;
+            throw new HttpException(500, "Internal Server Error");
         }
     }
 
