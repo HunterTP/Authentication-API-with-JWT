@@ -10,6 +10,11 @@ public class HttpException extends IOException {
         this.statusCode = statusCode;
     }
 
+    public HttpException(int statusCode, String message, Throwable cause) {
+        super(message, cause);
+        this.statusCode = statusCode;
+    }
+
     public int getStatusCode() {
         return statusCode;
     }

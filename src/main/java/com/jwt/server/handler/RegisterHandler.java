@@ -46,7 +46,7 @@ public class RegisterHandler implements HttpHandler {
         if (passError != null) throw new HttpException(400, passError);
 
         SqlUtils.registerUser(username, password);
-        ResponseUtils.send(exchange, 201, "{\"message\": \"User " + username + " was created\"}");
+        ResponseUtils.sendMessage(exchange, 201, "User " + username + " was created");
         log.info("User registered: {}", username);
     }
 }

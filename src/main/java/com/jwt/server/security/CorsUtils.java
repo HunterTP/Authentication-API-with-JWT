@@ -2,12 +2,13 @@ package com.jwt.server.security;
 
 import java.io.IOException;
 
+import com.jwt.server.config.Config;
 import com.sun.net.httpserver.HttpExchange;
 
 public class CorsUtils {
-    
+
     public static void addCorsHeaders(HttpExchange exchange) {
-        exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+        exchange.getResponseHeaders().set("Access-Control-Allow-Origin", Config.CORS_ORIGIN);
         exchange.getResponseHeaders().set("Access-Control-Allow-Methods", 
             "GET, POST, PUT, DELETE");
         exchange.getResponseHeaders().set("Access-Control-Allow-Headers", 

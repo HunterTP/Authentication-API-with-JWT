@@ -8,7 +8,7 @@ public final class RequestUtils {
 
     private RequestUtils() {}
 
-    public static boolean hasContentType(HttpExchange exchange, String expected) {
+    private static boolean hasContentType(HttpExchange exchange, String expected) {
         String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
         if (contentType == null) return false;
         int semi = contentType.indexOf(';');

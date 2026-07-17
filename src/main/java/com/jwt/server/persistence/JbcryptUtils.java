@@ -5,22 +5,22 @@ import org.mindrot.jbcrypt.BCrypt;
 import com.jwt.server.config.Config;
 import com.jwt.server.exception.HttpException;
 
-public class JbcryptUtils {
+public final class JbcryptUtils {
 
     private static final int WORKLOAD = Config.BCRYPT_WORKLOAD;
     private static final String PEPPER = Config.BCRYPT_PEPPER;
 
-    public String[] Hash(String password) {
-        String[] hash = new String[2];
-        hash[0] = BCrypt.gensalt(WORKLOAD);
-        hash[1] = BCrypt.hashpw((PEPPER != null ? PEPPER : "") + password, hash[0]);
-        return hash;
+    private JbcryptUtils() {}
+
+    public static String[] hashPasswordPair(String password) {
+        String salt = BCrypt.gensalt(WORKLOAD);
+        String hash = BCrypt.hashpw((PEPPER != null ? PEPPER : "") + password, salt);
+        return new String[]{salt, hash};
     }
 
-    public String HashPassword(String password, String username) throws HttpException {
+    public static String hashPassword(String password, String username) throws HttpException {
         String salt = SqlUtils.getSalt(username);
         if (salt == null) return null;
-        String hashedpassword = BCrypt.hashpw((PEPPER != null ? PEPPER : "") + password, salt);
-        return hashedpassword;
+        return BCrypt.hashpw((PEPPER != null ? PEPPER : "") + password, salt);
     }
 }

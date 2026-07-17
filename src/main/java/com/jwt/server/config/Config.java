@@ -17,16 +17,19 @@ public final class Config {
         System.getenv().getOrDefault("BCRYPT_WORKLOAD", "12"));
     public static final String BCRYPT_PEPPER = System.getenv("BCRYPT_PEPPER");
 
-    // Keystore
+    // Keystore — must be set via environment; no default for production safety
     public static final String KEYSTORE_PATH = System.getenv("KEYSTORE_PATH");
-    public static final String KEYSTORE_PASS = System.getenv().getOrDefault("KEYSTORE_PASS", "123456");
-    public static final String KEY_PASS = System.getenv().getOrDefault("KEY_PASS", "123456");
+    public static final String KEYSTORE_PASS = System.getenv("KEYSTORE_PASS");
+    public static final String KEY_PASS = System.getenv("KEY_PASS");
 
     // Validation
     public static final int USERNAME_MIN_LENGTH = 3;
     public static final int USERNAME_MAX_LENGTH = 30;
     public static final int PASSWORD_MIN_LENGTH = 8;
     public static final int PASSWORD_MAX_LENGTH = 128;
+
+    // CORS
+    public static final String CORS_ORIGIN = System.getenv().getOrDefault("CORS_ORIGIN", "*");
 
     // Rate Limiting
     public static final int RATE_LIMIT_MAX_REQUESTS = 20;

@@ -20,8 +20,12 @@ public class Main {
     private static final Logger log = LoggerFactory.getLogger(Main.class);
     private static HttpsServer server;
 
+    private static volatile boolean running = true;
+
     public static void main(String[] args) {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (!running) return;
+            running = false;
             log.info("Shutting down...");
             if (server != null) {
                 server.stop(2);
@@ -56,9 +60,7 @@ public class Main {
         }, 15, 15, TimeUnit.MINUTES);
         log.info("Cleanup scheduled every 15 minutes");
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            cleaner.shutdown();
-        }));
+        Runtime.getRuntime().addShutdownHook(new Thread(cleaner::shutdown));
 
         try {
             server = HttpsUtils.createHttpsServer();
@@ -68,7 +70,8 @@ public class Main {
             }
             log.info("Server is ready on https://localhost:{}", Config.PORT);
         } catch (Exception e) {
-            log.error("Fatal error: {}", e.getMessage());
+            log.error("Fatal error starting server", e);
+            System.exit(1);
         }
     }
 }

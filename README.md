@@ -89,9 +89,10 @@ All configuration is via environment variables:
 | `JWT_EXPIRATION_MS` | Token TTL in milliseconds | `3600000` (1 hour) |
 | `BCRYPT_PEPPER` | Pepper prepended to passwords | `null` (no pepper) |
 | `BCRYPT_WORKLOAD` | BCrypt cost factor | `12` |
-| `KEYSTORE_PASS` | Keystore password | `123456` |
-| `KEY_PASS` | Key password | `123456` |
+| `KEYSTORE_PASS` | Keystore password | **Required** — fails fast if missing |
+| `KEY_PASS` | Key password | **Required** — fails fast if missing |
 | `KEYSTORE_PATH` | Custom keystore path | Built-in `keystore.jks` |
+| `CORS_ORIGIN` | Allowed CORS origin | `*` |
 | `API_PORT` | HTTPS server port | `8443` |
 
 ## API Endpoints
@@ -175,7 +176,7 @@ java-api:
     mysql-db:
       condition: service_healthy
   healthcheck:
-    test: ["CMD", "curl", "-f", "-k", "-s", "-o", "/dev/null", "https://localhost:8443/api/health"]
+    test: ["CMD", "curl", "-f", "-k", "-s", "-o", "/dev/null", "https://localhost:8443/v1/api/health"]
     interval: 5s
     start_period: 20s
     retries: 10
@@ -285,7 +286,7 @@ Checkout → mvn test → OWASP DepCheck → SpotBugs → Buildx → docker buil
 
 | Step | Purpose |
 |------|---------|
-| `mvn test` | 28 unit tests (utilities: config, JSON, rate limiter, validation) |
+| `mvn test` | 25 unit tests (utilities: config, JSON, rate limiter, validation) |
 | **OWASP Dependency Check** | Vulnerability scan of all dependencies (CVSS ≥ 7 fails build, non-blocking) |
 | **SpotBugs** | Static analysis for bug patterns (Medium threshold, non-blocking) |
 | **Integration tests** | Full register → login → delete cycle against running containers |
@@ -346,7 +347,6 @@ Authentication-API-with-JWT/
 ├── pom.xml
 ├── Dockerfile
 ├── docker-compose.yml
-├── .env.example
 ├── .github/workflows/
 │   └── docker.yml           # GitHub Actions CI
 └── README.md

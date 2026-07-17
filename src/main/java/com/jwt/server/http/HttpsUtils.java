@@ -30,25 +30,23 @@ public class HttpsUtils {
 
     private static final Logger log = LoggerFactory.getLogger(HttpsUtils.class);
 
-    public static HttpsServer createHttpsServer() throws Exception {
+    public static HttpsServer createHttpsServer() throws IOException {
 
-        HttpsServer server = HttpsServer.create(new InetSocketAddress(Config.PORT), 0);
+        String storepass = Config.KEYSTORE_PASS;
+        String keypass = Config.KEY_PASS;
 
-        try {
-            String storepass = Config.KEYSTORE_PASS;
-            String keypass = Config.KEY_PASS;
+        if (storepass == null || keypass == null) {
+            log.error("KEYSTORE_PASS and KEY_PASS must be set");
+            return null;
+        }
 
-            if (storepass == null || keypass == null) {
-                log.error("KEYSTORE_PASS and KEY_PASS must be set");
-                return null;
-            }
+        String keystorePath = (Config.KEYSTORE_PATH != null && !Config.KEYSTORE_PATH.isEmpty())
+            ? Config.KEYSTORE_PATH : "keystore.jks";
 
-            String keystorePath = (Config.KEYSTORE_PATH != null && !Config.KEYSTORE_PATH.isEmpty())
-                ? Config.KEYSTORE_PATH : "keystore.jks";
-
-            File ksFile = new File(keystorePath);
-            if (!ksFile.exists()) {
-                log.info("Keystore not found, generating self-signed certificate...");
+        File ksFile = new File(keystorePath);
+        if (!ksFile.exists()) {
+            log.info("Keystore not found, generating self-signed certificate...");
+            try {
                 ProcessBuilder pb = new ProcessBuilder(
                     "keytool", "-genkeypair", "-alias", "selfsigned",
                     "-keyalg", "RSA", "-keysize", "2048",
@@ -66,49 +64,60 @@ public class HttpsUtils {
                     return null;
                 }
                 log.info("Self-signed keystore generated: {}", keystorePath);
+            } catch (IOException | InterruptedException e) {
+                log.error("keytool execution failed: {}", e.getMessage());
+                return null;
             }
-
-            KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
-            try (FileInputStream fis = new FileInputStream(keystorePath)) {
-                ks.load(fis, storepass.toCharArray());
-            }
-
-            KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
-            kmf.init(ks, keypass.toCharArray());
-
-            SSLContext sslContext = SSLContext.getInstance("TLS");
-            sslContext.init(kmf.getKeyManagers(), null, null);
-
-            server.setHttpsConfigurator(new HttpsConfigurator(sslContext) {
-                @Override
-                public void configure(HttpsParameters params) {
-                    SSLContext c = getSSLContext();
-                    params.setSSLParameters(c.getDefaultSSLParameters());
-                }
-            });
-
-            RegisterHandler registerHandler = new RegisterHandler();
-            LoginHandler loginHandler = new LoginHandler();
-            DeleteUserHandler deleteUserHandler = new DeleteUserHandler();
-            UpdatePasswordHandler updatePasswordHandler = new UpdatePasswordHandler();
-            UpdateUsernameHandler updateUsernameHandler = new UpdateUsernameHandler();
-            HealthHandler healthHandler = new HealthHandler();
-
-            server.createContext("/v1/auth/register", Middleware.wrap(registerHandler, "POST"));
-            server.createContext("/v1/auth/login", Middleware.wrap(loginHandler, "POST"));
-            server.createContext("/v1/auth/user/delete", Middleware.wrapProtected(deleteUserHandler, "DELETE"));
-            server.createContext("/v1/auth/user/password", Middleware.wrapProtected(updatePasswordHandler, "PUT"));
-            server.createContext("/v1/auth/user/username", Middleware.wrapProtected(updateUsernameHandler, "PUT"));
-            server.createContext("/v1/api/health", Middleware.wrap(healthHandler, "GET"));
-
-            server.setExecutor(Executors.newCachedThreadPool());
-            server.start();
-            log.info("HTTPS server listening on port {}", Config.PORT);
-
-        } catch (IOException | InterruptedException | GeneralSecurityException e) {
-            log.error("SSL initialization failed: {}", e.getMessage());
-            server = null;
         }
+
+        KeyStore ks;
+        try (FileInputStream fis = new FileInputStream(keystorePath)) {
+            ks = KeyStore.getInstance(KeyStore.getDefaultType());
+            ks.load(fis, storepass.toCharArray());
+        } catch (IOException | GeneralSecurityException e) {
+            log.error("Keystore loading failed: {}", e.getMessage());
+            return null;
+        }
+
+        KeyManagerFactory kmf;
+        SSLContext sslContext;
+        try {
+            kmf = KeyManagerFactory.getInstance("SunX509");
+            kmf.init(ks, keypass.toCharArray());
+            sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(kmf.getKeyManagers(), null, null);
+        } catch (GeneralSecurityException e) {
+            log.error("SSL initialization failed: {}", e.getMessage());
+            return null;
+        }
+
+        HttpsServer server = HttpsServer.create(new InetSocketAddress(Config.PORT), 0);
+        server.setHttpsConfigurator(new HttpsConfigurator(sslContext) {
+            @Override
+            public void configure(HttpsParameters params) {
+                SSLContext c = getSSLContext();
+                params.setSSLParameters(c.getDefaultSSLParameters());
+            }
+        });
+
+        RegisterHandler registerHandler = new RegisterHandler();
+        LoginHandler loginHandler = new LoginHandler();
+        DeleteUserHandler deleteUserHandler = new DeleteUserHandler();
+        UpdatePasswordHandler updatePasswordHandler = new UpdatePasswordHandler();
+        UpdateUsernameHandler updateUsernameHandler = new UpdateUsernameHandler();
+        HealthHandler healthHandler = new HealthHandler();
+
+        server.createContext("/v1/auth/register", Middleware.wrap(registerHandler, "POST"));
+        server.createContext("/v1/auth/login", Middleware.wrap(loginHandler, "POST"));
+        server.createContext("/v1/auth/user/delete", Middleware.wrapProtected(deleteUserHandler, "DELETE"));
+        server.createContext("/v1/auth/user/password", Middleware.wrapProtected(updatePasswordHandler, "PUT"));
+        server.createContext("/v1/auth/user/username", Middleware.wrapProtected(updateUsernameHandler, "PUT"));
+        server.createContext("/v1/api/health", Middleware.wrap(healthHandler, "GET"));
+
+        server.setExecutor(Executors.newCachedThreadPool());
+        server.start();
+        log.info("HTTPS server listening on port {}", Config.PORT);
+
         return server;
     }
 }

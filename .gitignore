@@ -1,14 +1,22 @@
 # Keystore and secrets
 keystore.jks
+*.p12
 .env
 
 # Docker Volumes
 mysql-data/
+docker-compose.override.yml
 
 # Maven Build
 target/
 *.jar
 *.war
+
+# Compiled classes
+*.class
+
+# Logs
+*.log
 
 # VS Code
 .vscode/

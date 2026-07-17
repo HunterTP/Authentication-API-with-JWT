@@ -1,5 +1,6 @@
 package com.jwt.server.persistence;
 
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
@@ -16,8 +17,7 @@ public class TokenBlacklist {
         try {
             Map<String, Long> stored = SqlUtils.loadBlacklistedTokens();
             cache.putAll(stored);
-        } catch (Exception e) {
-            // DB not available yet — will be loaded on first access
+        } catch (Exception ignored) {
         }
     }
 
@@ -27,8 +27,7 @@ public class TokenBlacklist {
         cache.put(hash, expiry);
         try {
             SqlUtils.persistBlacklistedToken(hash, expiry);
-        } catch (Exception e) {
-            // non-critical
+        } catch (Exception ignored) {
         }
     }
 
@@ -46,8 +45,7 @@ public class TokenBlacklist {
     public static void cleanup() {
         try {
             SqlUtils.removeExpiredBlacklistedTokens();
-        } catch (Exception e) {
-            // non-critical
+        } catch (Exception ignored) {
         }
         long now = System.currentTimeMillis();
         cache.entrySet().removeIf(e -> e.getValue() < now);
@@ -56,7 +54,7 @@ public class TokenBlacklist {
     private static String sha256(String input) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(input.getBytes());
+            byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(hash);
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException("SHA-256 not available", e);

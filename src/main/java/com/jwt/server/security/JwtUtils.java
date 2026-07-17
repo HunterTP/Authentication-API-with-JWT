@@ -1,5 +1,6 @@
 package com.jwt.server.security;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 import javax.crypto.SecretKey;
@@ -27,7 +28,7 @@ public class JwtUtils {
             throw new IllegalStateException("JWT_SECRET must be at least 32 characters long!");
         }
 
-        SECRET_KEY = Keys.hmacShaKeyFor(secret.getBytes());
+        SECRET_KEY = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
     public static String generateToken(String username) {

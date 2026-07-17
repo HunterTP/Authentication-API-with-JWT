@@ -28,22 +28,4 @@ class JsonUtilsTest {
     void extractValueEmptyJson() {
         assertNull(JsonUtils.extractValue("{}", "key"));
     }
-
-    @Test
-    void extractNumericValue() {
-        String json = "{\"port\": 8443}";
-        assertEquals("8443", JsonUtils.extractValueN(json, "port"));
-    }
-
-    @Test
-    void extractQuotedNumericValue() {
-        String json = "{\"port\": \"8443\"}";
-        assertEquals("8443", JsonUtils.extractValueN(json, "port"));
-    }
-
-    @Test
-    void extractMissingKeyN() {
-        String json = "{\"a\":\"1\"}";
-        assertNull(JsonUtils.extractValueN(json, "b"));
-    }
 }

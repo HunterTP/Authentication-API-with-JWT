@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 # init-db/init.sh
 # Runs during MySQL initialization (first startup with empty data volume).
 # Ensures appuser uses mysql_native_password for Java JDBC compatibility.

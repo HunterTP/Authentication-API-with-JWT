@@ -106,15 +106,11 @@
                 <version>3.1.0</version>
                 <configuration>
                     <mainClass>com.jwt.server.Main</mainClass>
-                    <environmentVariables>
-                        <JWT_SECRET>MySuperSecretJWTsecretKeyThatIsAtLeast32CharactersLong</JWT_SECRET>
-                        <BCRYPT_PEPPER>MySecretPepper</BCRYPT_PEPPER>
-                        <KEYSTORE_PASS>123456</KEYSTORE_PASS>
-                        <KEY_PASS>123456</KEY_PASS>
-                        <DB_URL>jdbc:mysql://localhost:3306/authdb</DB_URL>
-                        <DB_USER>user</DB_USER>
-                        <DB_PASSWORD>password</DB_PASSWORD>
-                    </environmentVariables>
+                    <!--
+                        Set environment variables via .env file or your IDE run config.
+                        Required vars: JWT_SECRET, KEYSTORE_PASS, KEY_PASS, BCRYPT_PEPPER
+                        DB defaults: DB_URL=jdbc:mysql://localhost:3306/authdb, DB_USER=root, DB_PASSWORD=root
+                    -->
                 </configuration>
             </plugin>
             <plugin>

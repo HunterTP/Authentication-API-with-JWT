@@ -27,7 +27,7 @@ public class DeleteUserHandler implements HttpHandler {
         }
 
         TokenBlacklist.invalidate(token);
-        ResponseUtils.send(exchange, 200, "{\"message\": \"User " + username + " was deleted\"}");
+        ResponseUtils.sendMessage(exchange, 200, "User " + username + " was deleted");
         log.info("User deleted: {}", username);
     }
 }

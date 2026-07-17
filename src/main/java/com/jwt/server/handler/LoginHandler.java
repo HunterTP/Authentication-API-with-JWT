@@ -62,7 +62,7 @@ public class LoginHandler implements HttpHandler {
         accountLocker.reset(username);
 
         String token = JwtUtils.generateToken(username);
-        String response = "{\"token\":\"" + token + "\", \"message\":\"Login successful\"}";
+        String response = "{\"token\":\"" + ResponseUtils.jsonEscape(token) + "\",\"message\":\"Login successful\"}";
         ResponseUtils.send(exchange, 200, response);
         log.info("Login successful: {}", username);
     }

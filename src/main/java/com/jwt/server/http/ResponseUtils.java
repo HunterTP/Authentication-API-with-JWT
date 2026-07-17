@@ -2,6 +2,7 @@ package com.jwt.server.http;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
@@ -18,20 +19,28 @@ public class ResponseUtils {
 
     public static void send(HttpExchange exchange, int statusCode, String response) throws IOException {
         addSecurityHeaders(exchange.getResponseHeaders());
-        exchange.sendResponseHeaders(statusCode, response.getBytes().length);
-        
+        byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
+        exchange.sendResponseHeaders(statusCode, bytes.length);
+
         try (OutputStream os = exchange.getResponseBody()) {
-            os.write(response.getBytes());
+            os.write(bytes);
         }
     }
     
     public static void sendError(HttpExchange exchange, int statusCode, String message) throws IOException {
-        String escaped = message
+        send(exchange, statusCode, "{\"error\":\"" + jsonEscape(message) + "\"}");
+    }
+
+    public static void sendMessage(HttpExchange exchange, int statusCode, String message) throws IOException {
+        send(exchange, statusCode, "{\"message\":\"" + jsonEscape(message) + "\"}");
+    }
+
+    public static String jsonEscape(String value) {
+        return value
             .replace("\\", "\\\\")
             .replace("\"", "\\\"")
             .replace("\n", "\\n")
             .replace("\r", "\\r")
             .replace("\t", "\\t");
-        send(exchange, statusCode, "{\"error\":\"" + escaped + "\"}");
     }
 }

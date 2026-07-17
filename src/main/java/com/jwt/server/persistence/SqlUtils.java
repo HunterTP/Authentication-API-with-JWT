@@ -7,9 +7,15 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.jwt.server.exception.HttpException;
 
 public class SqlUtils {
+
+    private static final Logger log = LoggerFactory.getLogger(SqlUtils.class);
+
     // Database connection parameters
     private static final String DB_URL;
     private static final String DB_USER;
@@ -37,7 +43,7 @@ public class SqlUtils {
         DB_PASSWORD = password;
         
         String logUrl = DB_URL.replaceAll("(?<=://)[^:]+:[^@]+@", "***:***@");
-        System.out.println("Database config loaded: " + logUrl);
+        log.info("Database config loaded: {}", logUrl);
     }
 
     // Returns a new database connection
@@ -45,15 +51,12 @@ public class SqlUtils {
         return DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
     }
 
-    // Tests the database connection
     public static boolean testConnection() {
         try (Connection conn = SqlUtils.getConnection()) {
-            System.out.println("Database connection successful!");
-            conn.close();
+            log.info("Database connection successful!");
             return true;
         } catch (SQLException e) {
-            System.err.println("Database error: " + e.getMessage());
-            System.out.println("ERROR: Cannot establish database connection!");
+            log.error("Database connection failed: {}", e.getMessage());
             return false;
         }
     }
@@ -64,22 +67,21 @@ public class SqlUtils {
         try (Connection conn = getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
-            String[] hash = new JbcryptUtils().Hash(password);
+            String[] hash = JbcryptUtils.hashPasswordPair(password);
 
             pstmt.setString(1, username);
             pstmt.setString(2, hash[1]);
             pstmt.setString(3, hash[0]);
             return pstmt.executeUpdate() > 0;
-            
+
         } catch (Exception e) {
             if (e.getMessage() != null && e.getMessage().contains("Duplicate entry")) {
-                throw new HttpException(409, "Username already exists");
+                throw new HttpException(409, "Username already exists", e);
             }
-            throw new HttpException(500, "Internal Server Error");
+            throw new HttpException(500, "Internal Server Error", e);
         }
     }
 
-    // Deletes a user
     public static boolean deleteUser(String username) throws HttpException {
         String sql = "DELETE FROM users WHERE username = ?";
         
@@ -90,7 +92,7 @@ public class SqlUtils {
             return pstmt.executeUpdate() > 0;
             
         } catch (Exception e) {
-            throw new HttpException(500, "Internal Server Error");
+            throw new HttpException(500, "Internal Server Error", e);
         }
     }
 
@@ -106,9 +108,9 @@ public class SqlUtils {
             
         } catch (Exception e) {
             if (e.getMessage() != null && e.getMessage().contains("Duplicate entry")) {
-                throw new HttpException(409, "Username already exists");
+                throw new HttpException(409, "Username already exists", e);
             }
-            throw new HttpException(500, "Internal Server Error");
+            throw new HttpException(500, "Internal Server Error", e);
         }
     }
 
@@ -118,7 +120,7 @@ public class SqlUtils {
         try (Connection conn = getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
-            String[] hash = new JbcryptUtils().Hash(newPassword);
+            String[] hash = JbcryptUtils.hashPasswordPair(newPassword);
 
             pstmt.setString(1, hash[1]);
             pstmt.setString(2, hash[0]);
@@ -126,13 +128,12 @@ public class SqlUtils {
             return pstmt.executeUpdate() > 0;
             
         } catch (Exception e) {
-            throw new HttpException(500, "Internal Server Error");
+            throw new HttpException(500, "Internal Server Error", e);
         }
     }
 
-    // Verify user credentials
     public static boolean checkUserCredentials(String username, String password) throws HttpException {
-        String hashedPassword = new JbcryptUtils().HashPassword(password, username);
+        String hashedPassword = JbcryptUtils.hashPassword(password, username);
         if (hashedPassword == null) return false;
 
         String sql = "SELECT * FROM users WHERE username = ? AND password = ?";
@@ -142,11 +143,12 @@ public class SqlUtils {
             
             pstmt.setString(1, username);
             pstmt.setString(2, hashedPassword);
-            ResultSet rs = pstmt.executeQuery();
-            return rs.next();
-            
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return rs.next();
+            }
+
         } catch (Exception e) {
-            throw new HttpException(500, "Internal Server Error");
+            throw new HttpException(500, "Internal Server Error", e);
         }
     }
 
@@ -157,14 +159,15 @@ public class SqlUtils {
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
             pstmt.setString(1, username);
-            ResultSet rs = pstmt.executeQuery();
-            if (rs.next()) {
-                return rs.getString("salt");
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("salt");
+                }
             }
             return null;
-            
+
         } catch (Exception e) {
-            throw new HttpException(500, "Internal Server Error");
+            throw new HttpException(500, "Internal Server Error", e);
         }
     }
 
@@ -175,12 +178,13 @@ public class SqlUtils {
         try (Connection conn = getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setLong(1, now);
-            ResultSet rs = pstmt.executeQuery();
-            while (rs.next()) {
-                result.put(rs.getString("token_hash"), rs.getLong("expires_at"));
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    result.put(rs.getString("token_hash"), rs.getLong("expires_at"));
+                }
             }
         } catch (Exception e) {
-            System.err.println("Failed to load blacklisted tokens: " + e.getMessage());
+            log.warn("Failed to load blacklisted tokens: {}", e.getMessage());
         }
         return result;
     }
@@ -194,7 +198,7 @@ public class SqlUtils {
             pstmt.setLong(3, expiresAt);
             pstmt.executeUpdate();
         } catch (Exception e) {
-            System.err.println("Failed to persist blacklisted token: " + e.getMessage());
+            log.warn("Failed to persist blacklisted token: {}", e.getMessage());
         }
     }
 
@@ -205,10 +209,10 @@ public class SqlUtils {
             pstmt.setLong(1, System.currentTimeMillis());
             int removed = pstmt.executeUpdate();
             if (removed > 0) {
-                System.out.println("Cleaned up " + removed + " expired blacklisted tokens");
+                log.info("Cleaned up {} expired blacklisted tokens", removed);
             }
         } catch (Exception e) {
-            System.err.println("Failed to cleanup expired tokens: " + e.getMessage());
+            log.warn("Failed to cleanup expired tokens: {}", e.getMessage());
         }
     }
 }
