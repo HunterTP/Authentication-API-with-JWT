@@ -7,9 +7,12 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.jwt.server.utils.HttpsUtils;
-import com.jwt.server.utils.SqlUtils;
-import com.jwt.server.utils.TokenBlacklist;
+import com.jwt.server.config.Config;
+import com.jwt.server.http.HttpsUtils;
+import com.jwt.server.persistence.SqlUtils;
+import com.jwt.server.persistence.TokenBlacklist;
+import com.jwt.server.security.AccountLocker;
+import com.jwt.server.security.RateLimiter;
 import com.sun.net.httpserver.HttpsServer;
 
 public class Main {
@@ -45,8 +48,8 @@ public class Main {
         cleaner.scheduleAtFixedRate(() -> {
             try {
                 TokenBlacklist.cleanup();
-                com.jwt.server.utils.RateLimiter.cleanupAll();
-                com.jwt.server.utils.AccountLocker.cleanupAll();
+                RateLimiter.cleanupAll();
+                AccountLocker.cleanupAll();
             } catch (Exception e) {
                 log.warn("Cleanup task failed: {}", e.getMessage());
             }
@@ -63,7 +66,7 @@ public class Main {
                 log.error("HTTPS server could not be started. Exiting.");
                 return;
             }
-            log.info("Server is ready on https://localhost:{}", com.jwt.server.utils.Config.PORT);
+            log.info("Server is ready on https://localhost:{}", Config.PORT);
         } catch (Exception e) {
             log.error("Fatal error: {}", e.getMessage());
         }
