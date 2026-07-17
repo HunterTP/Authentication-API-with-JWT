@@ -78,8 +78,20 @@ jobs:
           docker compose logs java-api
           exit 1
 
-      - name: Check containers
-        run: docker compose ps
+      - name: Pre-test diagnostics
+        run: |
+          echo "=== Java API logs ==="
+          docker compose logs java-api --tail 40
+          echo ""
+          echo "=== MySQL logs ==="
+          docker compose logs mysql-db --tail 20
+          echo ""
+          echo "=== Healthcheck response (verbose) ==="
+          curl -skv https://localhost:8443/v1/api/health 2>&1
+          echo ""
+          echo "=== Table check ==="
+          docker exec authenticationapi-mysql \
+            sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -u root -e "USE authdb; SHOW TABLES; SELECT COUNT(*) AS user_count FROM users;"' 2>&1
 
       - name: Integration tests
         run: |
@@ -122,6 +134,9 @@ jobs:
           if [ "$fail" = true ]; then
             echo ""
             echo "=== Some integration tests FAILED ==="
+            echo ""
+            echo "=== Post-failure logs (java-api) ==="
+            docker compose logs java-api --tail 40
             exit 1
           fi
           echo ""
