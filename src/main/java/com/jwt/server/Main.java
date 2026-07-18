@@ -1,5 +1,6 @@
 package com.jwt.server;
 
+import java.io.IOException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -69,7 +70,7 @@ public class Main {
                 return;
             }
             log.info("Server is ready on https://localhost:{}", Config.PORT);
-        } catch (Exception e) {
+        } catch (IOException e) {
             log.error("Fatal error starting server", e);
             System.exit(1);
         }
