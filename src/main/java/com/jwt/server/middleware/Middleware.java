@@ -102,6 +102,8 @@ public class Middleware {
     private static void quietlySendError(HttpExchange exchange, int statusCode, String message) {
         try {
             ResponseUtils.sendError(exchange, statusCode, message);
-        } catch (IOException ignored) {}
+        } catch (IOException e) {
+            log.warn("Failed to send error response: {}", e.getMessage());
+        }
     }
 }

@@ -20,9 +20,13 @@ public class AccountLocker {
     private final int maxAttempts;
     private final long lockDurationMs;
 
-    public AccountLocker() {
-        this.maxAttempts = Config.ACCOUNT_MAX_ATTEMPTS;
-        this.lockDurationMs = Config.ACCOUNT_LOCK_DURATION_MS;
+    public AccountLocker(int maxAttempts, long lockDurationMs) {
+        this.maxAttempts = maxAttempts;
+        this.lockDurationMs = lockDurationMs;
+    }
+
+    private AccountLocker() {
+        this(Config.ACCOUNT_MAX_ATTEMPTS, Config.ACCOUNT_LOCK_DURATION_MS);
     }
 
     public boolean isLocked(String username) {

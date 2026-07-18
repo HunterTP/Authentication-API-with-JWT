@@ -1,7 +1,8 @@
 package com.jwt.server.security;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
 
 import com.jwt.server.config.Config;
 
@@ -17,11 +18,11 @@ public class RateLimiter {
         GLOBAL.cleanup();
     }
 
-    private final ConcurrentHashMap<String, ConcurrentLinkedDeque<Long>> requests = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, TimestampWindow> requests = new ConcurrentHashMap<>();
     private final int maxRequests;
     private final long windowMs;
 
-    public RateLimiter() {
+    private RateLimiter() {
         this(Config.RATE_LIMIT_MAX_REQUESTS, Config.RATE_LIMIT_WINDOW_MS);
     }
 
@@ -32,9 +33,9 @@ public class RateLimiter {
 
     public boolean isAllowed(String key) {
         long now = System.currentTimeMillis();
-        ConcurrentLinkedDeque<Long> timestamps = requests.computeIfAbsent(key, k -> new ConcurrentLinkedDeque<>());
-
-        synchronized (timestamps) {
+        TimestampWindow tw = requests.computeIfAbsent(key, k -> new TimestampWindow());
+        synchronized (tw) {
+            Deque<Long> timestamps = tw.timestamps;
             while (!timestamps.isEmpty() && now - timestamps.peekFirst() > windowMs) {
                 timestamps.pollFirst();
             }
@@ -53,13 +54,18 @@ public class RateLimiter {
     public void cleanup() {
         long now = System.currentTimeMillis();
         requests.entrySet().removeIf(entry -> {
-            ConcurrentLinkedDeque<Long> timestamps = entry.getValue();
-            synchronized (timestamps) {
+            TimestampWindow tw = entry.getValue();
+            synchronized (tw) {
+                Deque<Long> timestamps = tw.timestamps;
                 while (!timestamps.isEmpty() && now - timestamps.peekFirst() > windowMs) {
                     timestamps.pollFirst();
                 }
                 return timestamps.isEmpty();
             }
         });
+    }
+
+    private static class TimestampWindow {
+        final Deque<Long> timestamps = new ArrayDeque<>();
     }
 }
